@@ -52,6 +52,7 @@ Y = Y / np.std(Y)
 # plt.show()
 
 
+
 est_gp = SymbolicRegressor(population_size=4000, 
 							generations=30, 
 							tournament_size=20, 
