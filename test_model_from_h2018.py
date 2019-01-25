@@ -56,31 +56,23 @@ nu = np.concatenate((u.reshape(-1,1),v.reshape(-1,1),r.reshape(-1,1)),axis = 1)
 tau = np.concatenate((fx.reshape(-1,1),fy.reshape(-1,1),fz.reshape(-1,1)),axis = 1)
 
 
-M = np.array([[4925, 0 ,0], [0, 4935, 0], [0, 0, 20928]])
+M = np.array([[4935, 0 ,0], [0, 4935, 0], [0, 0, 20928]])
 
 def C_func(nu, M):
 	C = np.array([[0, 0, -M[1,1]*nu[1]-M[1,2]*nu[2]], [0, 0, M[0,0]*nu[0]], [M[1,1]*nu[1]+M[2,1]*nu[2], -M[0,0]*nu[0], 0]])
 	return C
 
 def D_func(nu):
-	D = np.array([[50+243*np.abs(nu[0]), 0, 0], [0, 200+2000*np.abs(nu[0]), 0], [0, 1281, 1281+2975*np.abs(nu[2])]])
+	D = np.array([[50+243*np.abs(nu[0]), 0, 0], [0, 200+2000*np.abs(nu[1]), 0], [0, 1281, 1281+2975*np.abs(nu[2])]])
 	return D
 
 def C_func2(nu):
 	m = 4925
 	C = np.array([[0, 0, -m*nu[1]], [0, 0, m*nu[0]], [m*nu[1], -m*nu[0], 0]])
 	return C
+
 d_nu = np.zeros((3, len(t)))
 M_inv = np.linalg.inv(M)
-
-
-tmp2 = np.dot(M_inv,tau[50]).reshape(-1,1)
-
-
-
-a = np.dot(np.dot(M_inv, C_func(nu[0],M)), nu[0])
-b = np.dot(np.dot(M_inv, D_func(nu[0])), nu[0])
-print(a.shape, b.shape, d_nu.shape)
 
 for i in range(len(t)):
 	#d_nu[:,i] = np.dot(M_inv,tau[i]) - np.dot(np.dot(M_inv, C_func2(nu[i])), nu[i]) - np.dot(np.dot(M_inv, D_func(nu[i])), nu[i])
@@ -96,4 +88,30 @@ plt.plot(t,dv)
 plt.subplot(313)
 plt.plot(t,d_nu[2,:])
 plt.plot(t,dr)
+
+
+
+
+
+m = 4925
+
+du_eq2 = 1e-3 * 0.2026 * (fx + m*v*r - 50*u - 243*np.abs(u)*u)
+dv_eq2 = 1e-3 * 0.2026 * (fy - m*u*r - 200*v - 2000 * np.abs(v)*v)
+dr_eq2 = 1e-3 * 0.0478 * (fz - 1281*v - 1281*r - 2975*np.abs(r)*r)
+
+plt.figure()
+plt.subplot(311)
+plt.plot(t,du_eq2)
+plt.plot(t,du)
+
+plt.subplot(312)
+plt.plot(t,dv_eq2)
+plt.plot(t,dv)
+
+plt.subplot(313)
+plt.plot(t,dr_eq2)
+plt.plot(t,dr)
+
+
+
 plt.show()
