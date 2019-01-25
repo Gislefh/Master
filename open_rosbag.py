@@ -6,13 +6,17 @@ from scipy import integrate, signal, interpolate
 
 
 path = '/home/gislehalv/Master/Data/'
-name = 'hal_control_2018-12-11-10-53-26_0'
+name = 'hal_control_2018-12-11-12-19-11_0'
 bagFile = path + name + '.bag'
 bag = rosbag.Bag(bagFile)
 bagContents = bag.read_messages()
 if not bagContents:
 	print('bag is empty')
 	exit()
+
+#save?
+save = False
+
 
 #listOfTopics = []
 #for topic, msg, t in bagContents:
@@ -74,6 +78,43 @@ r_smooth = signal.savgol_filter(nav_data[5, :], 101, 3)
 
 
 
+#-- notch filter for yaw
+avr_step_len = nav_data[6, -1] / len(nav_data[6, :]) #avr. step len
+fs = 1/avr_step_len
+
+
+sp = np.fft.rfft(r_smooth)
+freq = np.fft.rfftfreq(len(r_smooth) , avr_step_len)
+plt.plot(freq, sp.real)
+plt.show()
+
+w0 = 0.01
+Q = 1
+
+print(fs)
+b, a = signal.iirnotch(w0, Q, fs = fs)
+r_notch = signal.lfilter(b, a, r_smooth)
+
+plt.figure()
+plt.subplot(311)
+plt.plot(nav_data[6, :], nav_data[5, :])
+plt.plot(nav_data[6, :], r_smooth)
+plt.plot(nav_data[6, :], r_notch)
+plt.grid()
+plt.legend(['orig signal','original r', 'notch filtered'])
+plt.subplot(312)
+plt.plot(jet_data[2, :], jet_data[1, :])
+plt.grid()
+plt.legend(['steering'])
+plt.subplot(313)
+plt.plot(nav_data[6, :], nav_data[2, :])
+plt.legend(['heading'])
+plt.show()
+exit()
+
+
+
+
 #### 		-- Integrate --
 du = np.diff(nav_data[3, :],n = 1)
 dv = np.diff(nav_data[4, :],n = 1)
@@ -111,9 +152,10 @@ data[8, :] = jet_data[3, :] # bucket
 data[9, :] = jet_data[2, :] # jet time
 
 ### --- save --
-save_path = '/home/gislehalv/Master/Data/CSV Data From Bags/'
-save_name = save_path + name + '.csv'
-np.savetxt(save_name, data, delimiter = ',')
+if save:
+	save_path = '/home/gislehalv/Master/Data/CSV Data From Bags/'
+	save_name = save_path + name + '.csv'
+	np.savetxt(save_name, data, delimiter = ',')
 
 ## data = [u, v, r, du, dv, dr, engine rpm, steering nozzle, bucket, time]
 
@@ -175,4 +217,25 @@ plt.grid()
 
 plt.show()
 
+
+
+
+
+
+
+#timesteps
+
+# cnt = 0
+# for i in range(len(nav_data[6, :])):
+# 	ts = nav_data[6, 1] - nav_data[6, 0]
+# 	if not (nav_data[6, i+1] - nav_data[6, i]) == ts:
+# 		cnt +=1
+# 		print(cnt, (nav_data[6, i+1] - nav_data[6, i]), ts)
+
+# cnt = 0
+# for i in range(len(jet_data[2, :])):
+# 	ts = jet_data[2, 1] - jet_data[2, 0]
+# 	if not (jet_data[2, i+1] - jet_data[2, i]) == ts:
+# 		cnt +=1
+# 		print(cnt, (jet_data[2, i+1] - jet_data[2, i]), ts)
 

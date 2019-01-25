@@ -1,0 +1,99 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from gplearn.genetic import SymbolicRegressor
+from sklearn import preprocessing
+import pydotplus
+from PIL import Image
+import io
+
+
+##  -- import data -- 
+file_path = '/home/gislehalv/Master/Data/data_fom_MatlabSim/du_data2.csv'
+data = np.loadtxt(file_path, delimiter = ',')
+## data = [u,v,r,U,du,dv,dr,dU,force_x,force_y,force_z,time]
+
+
+#X = np.concatenate((data[:, 0:3],data[:, 8:11]),axis = 1)  #[u,v,r,fx,fy,fz]
+
+#Y = data[:, 4] #dv
+#t = data[:, -1]
+
+u = data[:, 0]
+v = data[:, 1]
+r = data[:, 2]
+fx = data[:, 8]
+fy = data[:, 9]
+fz = data[:, 10]
+du = data[:, 4]
+dv = data[:, 5]
+dr = data[:, 6]
+t = data[:, -1]
+
+
+du_eq = np.multiply(v,r) - 0.01 - 0.05 * np.multiply(np.absolute(u),u) + fx/5000
+dv_eq = -4.24 * np.multiply(u,r) - 0.17 - 1.72 * np.multiply(np.absolute(u),v)
+dr_eq = -0.26 * v - np.multiply(v,r) - 0.6 * np.multiply(np.absolute(r),r) + fz
+
+
+plt.figure()
+plt.subplot(311)
+plt.plot(t,du)
+plt.plot(t,du_eq)
+plt.legend(['du', 'du_eq'])
+plt.subplot(312)
+plt.plot(t,dv)
+plt.plot(t,dv_eq)
+plt.legend(['dv', 'dv_eq'])
+plt.subplot(313)
+plt.plot(t,dr)
+plt.plot(t,dr_eq)
+plt.legend(['dr', 'dr_eq'])
+
+
+#plt.show()
+
+nu = np.concatenate((u.reshape(-1,1),v.reshape(-1,1),r.reshape(-1,1)),axis = 1)
+tau = np.concatenate((fx.reshape(-1,1),fy.reshape(-1,1),fz.reshape(-1,1)),axis = 1)
+
+
+M = np.array([[4925, 0 ,0], [0, 4935, 0], [0, 0, 20928]])
+
+def C_func(nu, M):
+	C = np.array([[0, 0, -M[1,1]*nu[1]-M[1,2]*nu[2]], [0, 0, M[0,0]*nu[0]], [M[1,1]*nu[1]+M[2,1]*nu[2], -M[0,0]*nu[0], 0]])
+	return C
+
+def D_func(nu):
+	D = np.array([[50+243*np.abs(nu[0]), 0, 0], [0, 200+2000*np.abs(nu[0]), 0], [0, 1281, 1281+2975*np.abs(nu[2])]])
+	return D
+
+def C_func2(nu):
+	m = 4925
+	C = np.array([[0, 0, -m*nu[1]], [0, 0, m*nu[0]], [m*nu[1], -m*nu[0], 0]])
+	return C
+d_nu = np.zeros((3, len(t)))
+M_inv = np.linalg.inv(M)
+
+
+tmp2 = np.dot(M_inv,tau[50]).reshape(-1,1)
+
+
+
+a = np.dot(np.dot(M_inv, C_func(nu[0],M)), nu[0])
+b = np.dot(np.dot(M_inv, D_func(nu[0])), nu[0])
+print(a.shape, b.shape, d_nu.shape)
+
+for i in range(len(t)):
+	#d_nu[:,i] = np.dot(M_inv,tau[i]) - np.dot(np.dot(M_inv, C_func2(nu[i])), nu[i]) - np.dot(np.dot(M_inv, D_func(nu[i])), nu[i])
+	d_nu[:, i] = np.dot(M_inv, (tau[i] - np.dot(C_func2(nu[i]), nu[i]) - np.dot(D_func(nu[i]), nu[i]) ))
+
+plt.figure()
+plt.subplot(311)
+plt.plot(t,d_nu[0,:])
+plt.plot(t,du)
+plt.subplot(312)
+plt.plot(t,d_nu[1,:])
+plt.plot(t,dv)
+plt.subplot(313)
+plt.plot(t,d_nu[2,:])
+plt.plot(t,dr)
+plt.show()
