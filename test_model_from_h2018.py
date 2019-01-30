@@ -95,9 +95,13 @@ plt.plot(t,dr)
 
 m = 4925
 
-du_eq2 = 1e-3 * 0.2026 * (fx + m*v*r - 50*u - 243*np.abs(u)*u)
-dv_eq2 = 1e-3 * 0.2026 * (fy - m*u*r - 200*v - 2000 * np.abs(v)*v)
-dr_eq2 = 1e-3 * 0.0478 * (fz - 1281*v - 1281*r - 2975*np.abs(r)*r)
+du_eq2 = 1e-3 * 0.2026 * (fx + m*v*r - 50*u - 243*np.abs(u)*u)		# 2.026e-4*fx + v*r - 0.0101*u -0.0492*np.abs(u)*u
+dv_eq2 = 1e-3 * 0.2026 * (fy - m*u*r - 200*v - 2000*np.abs(v)*v)	# 2.026e-4*fy + u*r - 0.045*v - 0.4052*np.abs(v)*v
+dr_eq2 = 1e-3 * 0.0478 * (fz - 1281*v - 1281*r - 2975*np.abs(r)*r)	# 4.78e-5*fz -0.2595(v+r) - 0.6027*np.abs(r)*r
+
+
+
+
 
 plt.figure()
 plt.subplot(311)
@@ -115,3 +119,120 @@ plt.plot(t,dr)
 
 
 plt.show()
+
+
+
+
+
+
+
+###testing with scaling
+
+du_scaled = du -np.mean(du)
+du_scaled = du / np.std(du)
+
+
+du_mean = np.mean(du)
+du_std = np.std(du)
+
+# plt.figure()
+# plt.plot(t,du)
+# plt.legend(['du_scaled'])
+
+# plt.figure()
+# plt.plot(t,du_eq2)
+# plt.legend(['du_orig'])
+
+
+
+
+X = np.concatenate((data[:, 0:3],data[:, 8:11]),axis = 1)  #[u,v,r,fx,fy,fz]
+
+#zero mean unit variance
+for i in range(np.shape(X)[1]):
+	#if np.std(X[:, i]):
+		#X[:, i] = X[:, i] - np.mean(X[:, i])
+	X[:, i] = X[:, i] / np.std(X[:, i])
+
+#
+#X[:, 3] = X[:,3] /100
+
+du_eq2_scaled = 2.026e-4*X[:,3] + X[:,1]*X[:,2] - 0.0101*X[:,0] -0.0492*np.abs(X[:,0])*X[:,0]
+
+plt.figure()
+plt.plot(t,du_scaled)
+plt.legend('du_scaled')
+
+plt.figure()
+plt.plot(t,du_eq2)
+plt.legend(['du_orig'])
+
+
+plt.figure()
+plt.plot(t,du_eq2_scaled)
+plt.legend(['du_with_scaled_input'])
+
+plt.show()
+
+
+
+
+###------- does the shape of the eqation change or just the constants? 
+plt.figure()
+plt.subplot(312)
+plt.plot(t,du_scaled)
+plt.legend(['du_scaled'])
+
+
+# a = 2.026e-4
+# b = 0.0101
+# c = 0.0492
+best = 0
+
+for a in np.logspace(-1,1,num = 50):
+	print(a)
+	for b in np.logspace(-2,-1,num = 50):
+		for c in np.logspace(-1,1,num = 50):
+			du_eq2_scaled = a*X[:,3] + X[:,1]*X[:,2] - b*X[:,0] - c*np.abs(X[:,0])*X[:,0]
+
+			mse = ((du - du_eq2_scaled)**2).mean(axis=None)
+
+			if not best:
+				best = mse
+
+			if mse < best:
+				best = mse
+				a_best,b_best,c_best = a,b,c
+
+print('mse: ',best)
+print('[a,b,c]: ',[a_best,b_best,c_best])
+
+
+du_eq2_scaled = a_best*X[:,3] + X[:,1]*X[:,2] - b_best*X[:,0] - c_best*np.abs(X[:,0])*X[:,0]
+
+
+
+
+
+plt.subplot(311)
+plt.plot(t,du_scaled)
+plt.legend(['du_scaled'])
+
+
+plt.subplot(313)
+plt.plot(t,du_eq2_scaled)
+plt.legend(['du_with_scaled_input'])
+
+
+
+plt.figure()
+plt.plot(t,(du_eq2_scaled*du_std)+du_mean)
+plt.plot(t,du)
+plt.legend(['du with scaled input', 'du orig'])
+plt.xlabel('Time [s]')
+plt.ylabel('du [m/s²]')
+plt.grid()
+
+
+plt.show()
+
