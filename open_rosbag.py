@@ -79,6 +79,11 @@ r_smooth = signal.savgol_filter(nav_data[5, :], 101, 3)
 
 
 #-- notch filter for yaw
+#butter
+b, a = signal.butter(3, 0.05)
+zi = signal.lfilter_zi(b, a)
+
+
 avr_step_len = nav_data[6, -1] / len(nav_data[6, :]) #avr. step len
 fs = 1/avr_step_len
 
