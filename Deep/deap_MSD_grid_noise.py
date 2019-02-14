@@ -14,12 +14,15 @@ from sympy import sympify, cos, sin
 
 import pygraphviz as pgv
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 import sys
 sys.path.insert(0, '/home/gislehalv/Master/scripts')
 import my_lib
 from scipy import optimize
 from pytictoc import TicToc
+
+
 
 ## Simulation
 time = [0,50,0.1]
@@ -36,29 +39,6 @@ t,ddx,dx,x,tau = my_lib.MSD(time = time, mdk = mdk, tau = 'square')
 # plt.show()
 # exit()
 
-##-Add Noise
-noise_Y = True
-noise_X = False
-if noise_Y:
-	
-	s1 = np.shape(ddx)[0]
-	s2 = np.shape(ddx)[1]
-	noise_factor = 0.1
-
-	ddx_no_noise = ddx
-	ddx = ddx + noise_factor*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-
-if noise_X:
-	s1 = np.shape(ddx)[0]
-	s2 = np.shape(ddx)[1]
-	noise_factor = 0.03
-
-	dx_no_noise = dx
-	x_no_noise = x
-	tau_no_noise = tau
-	dx = dx + noise_factor*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-	x = x + noise_factor*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-	tau = tau + noise_factor*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
 
 ##-Add Time Delay
 
@@ -181,9 +161,9 @@ toolbox.register("mutate", gp.mutEphemeral, mode = 'all') #mode all: changes the
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=7))
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=7))
 
-def main():
+def main(ddx,dx,x,tau):
 	#random.seed(200)
-	pop = toolbox.population(n=500)
+	pop = toolbox.population(n=2)
 	hof = tools.HallOfFame(1)
 
 	stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
@@ -194,13 +174,111 @@ def main():
 	mstats.register("min", np.min)
 	mstats.register("max", np.max)
 
-	## Fit ##
-	pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.3, 12, stats=mstats,
-								halloffame=hof, verbose=True)
+	##-Add Noise
+	#noise_factor_x = 0.1
+	#noise_factor_y = 0.03
+
+	s1 = np.shape(ddx)[0]
+	s2 = np.shape(ddx)[1]
+
+	dx_no_noise = dx
+	x_no_noise = x
+	tau_no_noise = tau
+	ddx_no_noise = ddx
+
+	step_y = 10
+	step_x = 10
+	result = np.zeros((step_x,step_y))
+	for i,noise_factor_x in enumerate(np.logspace(-3,-0.5,num = step_x)):
+		for j, noise_factor_y in enumerate(np.logspace(-3,-0.5,num = step_y)):
+			ddx = ddx_no_noise 	+ noise_factor_y*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			dx 	= dx_no_noise  	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			x 	= x_no_noise 	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			tau = tau_no_noise 	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
 
 
-	func = toolbox.compile(expr=hof[0])
+			## Fit ##
+			pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.3, 3, stats=mstats,
+										halloffame=hof, verbose=False)
 
+			func = toolbox.compile(expr=hof[0])
+
+			#save result
+			def fun(X):
+				se = (ddx - func(X[0]*dx, X[1]*x, X[2]*tau))**2
+				se_1d = np.squeeze(se)
+				return se_1d
+
+			x0 = np.array([1,1,1])
+			sol = optimize.least_squares(fun,x0)
+					#Add the constants to the equation (new_str)
+			tmp = str(hof[0])
+			new_str = ''
+			skip = 0
+			for k in range(len(tmp)):
+				if tmp[k] == 'd' and tmp[k+1] == 'x':
+					new_str = new_str +"mul(dx,{:.7f})".format(sol.x[0])
+					skip = 2
+
+				elif tmp[k] == 'x' and tmp[k-1] != 'd':
+					new_str = new_str +"mul(x,{:.7f})".format(sol.x[1])
+					skip = 1
+
+				elif tmp[k] == 't' and tmp[k+1] == 'a' and tmp[k+2] == 'u':
+					new_str = new_str +"mul(tau,{:.7f})".format(sol.x[2])
+					skip = 3
+
+				elif skip == 0:
+					new_str = new_str + tmp[k]
+
+				if skip != 0:
+					skip = skip - 1
+			####### Sympify #######
+			locals = {
+				'mul': lambda x, y : x * y,
+				'add': lambda x, y : x + y,
+				'add3': lambda x, y, z: x+y+z,
+				'sub': lambda x, y : x - y,
+				'protectedDiv': lambda x, y: x / y,
+				'neg': lambda x: -x,
+				'sin': lambda x: sin(x),
+				'cos': lambda x: cos(x),
+				'abs': lambda x: np.abs(x)#x if x >= 0 else -x
+			}
+			eq = sympify(new_str,locals = locals)
+			mse_result = math.fsum((ddx_no_noise - func(sol.x[0]*dx, sol.x[1]*x,sol.x[2]*tau))**2)/len(tau)
+			print('noise x:', noise_factor_x, ' noise y:',noise_factor_y, ' mse:',mse_result, ' eq:', eq)
+			
+			result[i][j] = mse_result
+
+
+	fig = plt.figure()
+
+	ax = fig.gca(projection='3d')
+	X = np.logspace(-3,-0.5,num = step_x)
+	Y = np.logspace(-3,-0.5,num = step_y)
+	X, Y = np.meshgrid(X, Y)
+	Z = result   
+	ax.set_xscale('log')
+	#ax.yaxis.set_scale('log')
+	surf = ax.plot_surface(X, Y, Z)
+	plt.show()
+
+# if __name__ == "__main__":
+#     main()
+
+
+
+
+main(ddx,dx,x,tau)
+
+
+
+
+
+
+
+"""
 	# ### LSR ####
 	if LSR:
 		#find good constants
@@ -384,6 +462,4 @@ def main():
 	return None
 
 
-
-if __name__ == "__main__":
-    main()
+"""

@@ -48,10 +48,10 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 	def inp_step(t): 
 		if t < 5:
 			return 0
-		elif (t > 5) and (t < 10):
-			return 10
+		#elif (t > 5) and (t < 10):
+		#	return 10
 		else:
-			return 0
+			return 10
 
 	def inp_sin(t):
 		return np.sin(t)
@@ -65,7 +65,7 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 	#----SYS
 	#const
 	m,d,k = mdk
-	print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
+	#print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
 
 	#time
 	t_start, t_stop, t_step = time
