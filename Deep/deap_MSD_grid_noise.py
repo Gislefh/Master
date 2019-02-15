@@ -163,7 +163,7 @@ toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max
 
 def main(ddx,dx,x,tau):
 	#random.seed(200)
-	pop = toolbox.population(n=2)
+	pop = toolbox.population(n=500)
 	hof = tools.HallOfFame(1)
 
 	stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
@@ -181,24 +181,34 @@ def main(ddx,dx,x,tau):
 	s1 = np.shape(ddx)[0]
 	s2 = np.shape(ddx)[1]
 
+	n_ddx = np.amax(ddx)- np.amin(ddx)
+	n_dx = np.amax(dx)- np.amin(dx)
+	n_x = np.amax(x)- np.amin(x)
+	n_tau = np.amax(tau)- np.amin(tau)
+
 	dx_no_noise = dx
 	x_no_noise = x
 	tau_no_noise = tau
 	ddx_no_noise = ddx
 
-	step_y = 10
-	step_x = 10
-	result = np.zeros((step_x,step_y))
-	for i,noise_factor_x in enumerate(np.logspace(-3,-0.5,num = step_x)):
-		for j, noise_factor_y in enumerate(np.logspace(-3,-0.5,num = step_y)):
-			ddx = ddx_no_noise 	+ noise_factor_y*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-			dx 	= dx_no_noise  	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-			x 	= x_no_noise 	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
-			tau = tau_no_noise 	+ noise_factor_x*( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+
+	step_y = 8
+	step_x = 8
+	spacing = np.append(np.zeros((1)),np.logspace(-2,0,num = step_x))
+	#print(spacing)
+	#exit()
+	result = np.zeros((step_x+1,step_y+1))
+	result_str = []
+	for i,noise_factor_x in enumerate(spacing):
+		for j, noise_factor_y in enumerate(spacing):
+			ddx = ddx_no_noise 	+ noise_factor_y * n_ddx*	( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			dx 	= dx_no_noise  	+ noise_factor_x * n_dx*	( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			x 	= x_no_noise 	+ noise_factor_x * n_x *	( np.random.rand(s1,s2) - np.random.rand(s1,s2))
+			tau = tau_no_noise 	+ noise_factor_x * n_tau*	( np.random.rand(s1,s2) - np.random.rand(s1,s2))
 
 
 			## Fit ##
-			pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.3, 3, stats=mstats,
+			pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.3, 4, stats=mstats,
 										halloffame=hof, verbose=False)
 
 			func = toolbox.compile(expr=hof[0])
@@ -246,26 +256,42 @@ def main(ddx,dx,x,tau):
 				'abs': lambda x: np.abs(x)#x if x >= 0 else -x
 			}
 			eq = sympify(new_str,locals = locals)
-			mse_result = math.fsum((ddx_no_noise - func(sol.x[0]*dx, sol.x[1]*x,sol.x[2]*tau))**2)/len(tau)
+			mse_result = math.fsum((ddx_no_noise - func(sol.x[0]*dx_no_noise, sol.x[1]*x_no_noise,sol.x[2]*tau_no_noise))**2)/len(tau)
 			print('noise x:', noise_factor_x, ' noise y:',noise_factor_y, ' mse:',mse_result, ' eq:', eq)
 			
 			result[i][j] = mse_result
+			result_str.append(eq)
+
+	
+	# for i in range(step_x+1):
+	# 	for j in range(step_y+1):
+	# 		print(result[i,j])
+	# 		print(result_str[i*step_x+1 + j])
+	# 		print()
 
 
-	fig = plt.figure()
+	plt.figure()
+	plt.title('MSE for different noise amplitudes')
+	result = np.flip(result,axis = 0)
 
-	ax = fig.gca(projection='3d')
-	X = np.logspace(-3,-0.5,num = step_x)
-	Y = np.logspace(-3,-0.5,num = step_y)
-	X, Y = np.meshgrid(X, Y)
-	Z = result   
-	ax.set_xscale('log')
-	#ax.yaxis.set_scale('log')
-	surf = ax.plot_surface(X, Y, Z)
+	plt.imshow(result, cmap = 'inferno')
+	plt.colorbar()
+
+	#disp axis
+	tmp_x = spacing
+	xi = []
+	for i in range(len(tmp_x)):
+		xi.append('{:.3f}'.format(tmp_x[i]))
+	xi = np.array(xi)
+	tmp_x = np.arange(len(tmp_x))
+	plt.xticks(tmp_x, xi)
+	plt.yticks(tmp_x, np.flip(xi))
+
+	#labels
+	plt.xlabel('Noise Factor for ddx')
+	plt.ylabel('Noise Factor for dx, x, and tau')
 	plt.show()
 
-# if __name__ == "__main__":
-#     main()
 
 
 

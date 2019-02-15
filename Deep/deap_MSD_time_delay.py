@@ -38,7 +38,7 @@ t,ddx,dx,x,tau = my_lib.MSD(time = time, mdk = mdk, tau = 'square')
 
 ##-Add Noise
 noise_Y = False
-noise_X = True
+noise_X = False
 if noise_Y:
 	
 	s1 = np.shape(ddx)[0]
@@ -98,6 +98,11 @@ if noise_X:
 
 
 ##-Add Time Delay
+
+#Time delay on ddx
+
+
+
 
 
 #Scaling / Preprocessing
