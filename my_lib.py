@@ -42,11 +42,16 @@ _OUT_
 t,ddx,dx,x,inp: sim time, d²x/d²t, dx/dt, x, input to the system
 
 """
-def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass spring damper system
+def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step', time_delay = 0): #Mass spring damper system
 	
+
 	#----Inputs
-	def inp_step(t): 
-		if t < 5:
+	def inp_step(t):
+		if t <= time_delay:
+			t = 0
+		else:
+			t = t - time_delay
+		if t <= 5:
 			return 0
 		#elif (t > 5) and (t < 10):
 		#	return 10
@@ -54,9 +59,19 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 			return 10
 
 	def inp_sin(t):
+		if t < time_delay:
+			t = 0
+		else:
+			t = t - time_delay
+
 		return np.sin(t)
 
 	def inp_square(t):
+		if t <= time_delay:
+			t = 0
+			return 0
+		else:
+			t = t - time_delay
 		return signal.square(t/3)
 
 	inp = []
@@ -65,9 +80,10 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 	#----SYS
 	#const
 	m,d,k = mdk
-	#print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
+	print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
 
 	#time
+
 	t_start, t_stop, t_step = time
 	t = list(np.arange(t_start,t_stop,t_step))
 
@@ -95,10 +111,10 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 		print('not a valid input for < tau >')
 		exit()
 
-	sol = solve_ivp(sys,[t[0], t[-1]],[x0,dx0], vectorized = True,  max_step = t_step)# t_eval = t,
-	#acc = np.diff(sol.y[1,:])/np.diff(sol.t)
-	
-	#input
+	sol = solve_ivp(sys,[t[0], t[-1]],[x0,dx0], vectorized = True,  max_step = t_step, t_eval = t)
+
+	#delayed input
+
 	for i in range(len(sol.t)):
 		if tau == 'step': 
 			inp.append(inp_step(sol.t[i]))
@@ -108,9 +124,23 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step'): #Mass 
 			inp.append(inp_square(sol.t[i]))
 
 
-	acc = np.multiply((1/m),inp) - np.multiply((d/m),sol.y[1, :]) - np.multiply((k/m),sol.y[0, :])
-	inp = np.array(inp).reshape(-1,1)
 
+	#ddx
+	acc = np.multiply((1/m),inp) - np.multiply((d/m),sol.y[1, :]) - np.multiply((k/m),sol.y[0, :])
+	
+
+	#input
+	inp = []
+	time_delay = 0
+	for i in range(len(sol.t)):
+		if tau == 'step': 
+			inp.append(inp_step(sol.t[i]))
+		elif tau == 'sin': 
+			inp.append(inp_sin(sol.t[i]))
+		elif tau == 'square': 
+			inp.append(inp_square(sol.t[i]))
+
+	inp = np.array(inp).reshape(-1,1)
 
 	return  np.array(sol.t), np.array(acc).reshape(-1,1), np.array(sol.y[1, :]).reshape(-1,1), np.array(sol.y[0, :]).reshape(-1,1), inp
 
