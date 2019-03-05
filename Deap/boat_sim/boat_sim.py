@@ -5,14 +5,14 @@ from scipy.integrate import solve_ivp
 
 
 
-def boat_simulation(time = [0, 30, 0.1], init_cond = [0, 0, 0, 0, 0, 0]):
+def boat_simulation(input, time = [0, 30, 0.1], init_cond = [0, 0, 0, 0, 0, 0]):
 
 	## System ###
 	def sys(t,X):
 
-		#tauB = np.zeros((3,1))
-		tauB = inp
-
+		
+		tauB = np.zeros((3,1))
+		tauB = input(t)
 
 		eta = np.zeros((3,1))
 		eta[0,0] = X[0]
@@ -121,40 +121,37 @@ def boat_simulation(time = [0, 30, 0.1], init_cond = [0, 0, 0, 0, 0, 0]):
 		return out
 
 
-
+	#### solve ####
 	#time
 	t_start, t_stop, t_step = time 
 	t = list(np.arange(t_start, t_stop, t_step))
-	
-
-	inp = np.zeros((3,1))
-	inp[0,0] = 10000
-	#inp[1,0] = -2
 
 	sol = solve_ivp(sys, [t[0], t[-1]], init_cond, vectorized = True, max_step = t_step, t_eval = t)
 
+	inp = np.zeros((3,len(sol.t)))
+
+	for i,time in enumerate(sol.t):
+		inp[:,i] = np.squeeze(input(time))
 
 	sol_dot = np.zeros((np.shape(sol.y)[0], np.shape(sol.y)[1]))
-
-
-
 	for tmp, i in enumerate(t):
-		
 		sol_dot[:,tmp] = np.squeeze(sys(i, sol.y[:,tmp]))
 
 
-	plt.figure()
-	plt.plot(sol.y[0], sol.y[1])
-	plt.figure()
-	plt.plot(t,sol_dot[0,:])
-	plt.figure()
-	plt.plot(t,sol_dot[3,:])
-	plt.show()
-	
+	#final output [u,v,r,du,dv,dr,fx,fy,fz,t]
+	output = np.concatenate((sol_dot,inp,sol.t.reshape(1,-1)), axis = 0)
+	print(np.shape(output))
+	return output
 
-	return None
 
-boat_simulation()
+###   INPUT   ###
+def inp_step_x(t):
+	if t < 5:
+		return [[0],[0],[0]]
+	else:
+		return [[4000],[0],[0]]
+
+boat_simulation(inp_step_x)
 
 """
 #from Matlab

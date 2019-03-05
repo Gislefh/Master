@@ -8,30 +8,13 @@ import pydotplus
 from PIL import Image
 import io
 from scipy import signal
+from scipy import optimize
+
+from sympy import sympify, cos, sin
 
 
-#plots the tree structure
-def show_result(est_gp, X, Y, t, plot_show = False):
-	graph = pydotplus.graphviz.graph_from_dot_data(est_gp._program.export_graphviz())
-	img = Image.open(io.BytesIO(graph.create_png()))
-	tree = np.asarray(img)
-	plt.figure()
-	plt.imshow(tree)
 
-	print('RESULTING EQ: ',est_gp._program)
-	Y_est = est_gp.predict(X)
-
-	print('r²: ',est_gp.score(X,Y))
-	plt.figure()
-	plt.plot(t,Y)
-	plt.plot(t,Y_est)
-	plt.legend(['data', 'pred'])
-
-	if plot_show:
-		plt.show()
-
-
-"""
+"""-------- MASS SPRING DAMPER ---------
 _IN_
 time: 	[t_start, t_stop, t_step] -> start time, stop time, step length
 mdk:	[m, d, k] -> mass, damping, spring stiffness
@@ -80,7 +63,7 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step', time_de
 	#----SYS
 	#const
 	m,d,k = mdk
-	print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
+	#print('true eq: ',1/m,'*tau -',d/m,'*dx -',k/m,'*x')
 
 	#time
 
@@ -145,5 +128,315 @@ def MSD(time = [0,10,0.1], mdk = [1,1,1], x0 = 0, dx0 = 0, tau = 'step', time_de
 	return  np.array(sol.t), np.array(acc).reshape(-1,1), np.array(sol.y[1, :]).reshape(-1,1), np.array(sol.y[0, :]).reshape(-1,1), inp
 
 
+"""
+ ------------------ FIND THE CONSTANTS FROM LSR AND CREATE NEW STRING - for MSD sys ----------------
+_IN_ 
+func: 				the function with arguments (dx, x, tau)
+hof:				string to append the weights to
+ddx, dx, x, tau: 	the variables
 
-#def Preprocess
+_OUT_ 
+new_string: the new string
+sol: 		weights from the inputs
+
+
+"""
+def new_string_from_LSR(func, hof, ddx, dx, x, tau):
+
+	#find good constants
+	def fun(X):
+		se = (ddx - func(X[0]*dx, X[1]*x, X[2]*tau))**2
+		se_1d = np.squeeze(se)
+		return se_1d
+	x0 = np.array([1,1,1])
+	sol = optimize.least_squares(fun,x0)
+
+	#Add the constants to the equation (new_str)
+	tmp = str(hof)
+	new_str = ''
+	skip = 0
+	for i in range(len(tmp)):
+		if tmp[i] == 'd' and tmp[i+1] == 'x':
+			new_str = new_str +"mul(dx,{:.7f})".format(sol.x[0])
+			skip = 2
+
+		elif tmp[i] == 'x' and tmp[i-1] != 'd':
+			new_str = new_str +"mul(x,{:.7f})".format(sol.x[1])
+			skip = 1
+
+		elif tmp[i] == 't' and tmp[i+1] == 'a' and tmp[i+2] == 'u':
+			new_str = new_str +"mul(tau,{:.7f})".format(sol.x[2])
+			skip = 3
+
+		elif skip == 0:
+			new_str = new_str + tmp[i]
+
+		if skip != 0:
+			skip = skip - 1
+
+
+	locals = {
+		'mul': lambda x, y : x * y,
+		'add': lambda x, y : x + y,
+		'add3': lambda x, y, z: x+y+z,
+		'sub': lambda x, y : x - y,
+		'protectedDiv': lambda x, y: x / y,
+		'neg': lambda x: -x,
+		'sin': lambda x: sin(x),
+		'cos': lambda x: cos(x),
+		'abs': lambda x: np.abs(x)#x if x >= 0 else -x
+	}
+	new_str = sympify(new_str,locals = locals)
+
+	return new_str, sol 
+
+
+
+
+
+"""-------- BOAT SIMULATION  ---------
+_IN_
+input: function that takes in time and states and returns a [3,1] vector for fx,fy,fz
+time: 	[t_start, t_stop, t_step] -> start time, stop time, step length
+init_cond: [x0, y0, yaw0, u0, v0, r0]
+
+_OUT_
+output: [u,v,r,du,dv,dr,fx,fy,fz,t], a [10,n] matrix
+
+_NOTES_
+Actual equation in component form:
+du = 2.026e-4*fx + v*r - 0.0101*u -0.0492*np.abs(u)*u
+dv = 2.026e-4*fy + u*r - 0.045*v - 0.4052*np.abs(v)*v
+dr = 4.78e-5*fz -0.2595*(v+r) - 0.6027*np.abs(r)*r
+"""
+def boat_simulation(input, time = [0, 30, 0.01], init_cond = [0, 0, 0, 0, 0, 0]):
+
+	## System ###
+	def sys(t,X):
+
+		
+		tauB = np.zeros((3,1))
+		tauB = input(t,X)
+
+		# eta = np.zeros((3,1))
+		# eta[0,0] = X[0]
+		# eta[1,0] = X[1]
+		# eta[2,0] = X[2]
+
+		nu = np.zeros((3,1))
+		nu[0,0] = X[3]
+		nu[1,0] = X[4]
+		nu[2,0] = X[5]
+
+		#x = eta[0];
+		#y = eta[1];
+		yaw = X[2];
+
+
+		u = nu[0];
+		v = nu[1];
+		r = nu[2];
+
+
+		# mass and moment of inertia
+		m = 4935.14
+		Iz = 20928 #TODO Pz, sjekk at dette stemmer. Burde være Px?????
+
+		# center of gravity
+		xg = 0
+		yg = 0
+
+		# added mass
+		Xdu = 0
+		Ydv = 0
+		Ydr = 0
+		Ndv = 0
+		Ndr = 0
+
+		# damping (borrowed from Loe 2008)
+		Xu = -50
+		Yv = -200
+		Yr = 0
+		Nr = -1281
+
+		Xuu = -135*1.8 #TODO gang med 1.8?? Hvorfor gjør Thomas det
+		Yvv = -2000
+		T = 4
+		K = 0.5
+		Nrr = -Iz*1.1374*K/T # TODO eller 0??
+
+		# transformation matrix, equal to rotation matrix about z-axis
+		J = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+		     [np.sin(yaw), np.cos(yaw),  0],
+		     [0,        0,         1,]])
+
+		# rigid body mass
+		M_RB = np.array([[m, 0, 0],
+		        [0, m, 0],
+		        [0, 0, Iz]])
+
+		# hydrodynamic added body mass
+		M_A = -np.array([[Xdu, 0, 0],
+		        [0, Ydv, Ydr],
+		        [0, Ndv, Ndr]])
+		 
+		# total mass
+		M = M_RB + M_A
+
+		#Coriolis
+		C_RB_g = np.zeros((3,3))
+		C_RB_g[0,2] = -m*(xg*r+v)
+		C_RB_g[2,0] = -C_RB_g[0,2]
+		C_RB_g[1,2] = m*u
+		C_RB_g[2,1] = -C_RB_g[1,2]
+
+		C_A_g = np.zeros((3,3))
+		C_A_g[0,2] = Ydv*v+Ydr*r
+		C_A_g[2,0] = -C_A_g[0,2]
+		C_A_g[1,2] = Xdu*u
+		C_A_g[2,1] = -C_A_g[1,2]
+
+		C_g = np.multiply(C_RB_g, C_A_g)
+
+		#Linear damping
+		Dl_g = -np.array([[Xu, 0, 0],
+						[0, Yv, 0],
+						[0, 0, Nr]])
+		Dl_g[1,2] = -Yr;
+		Dl_g[2,1] = -Nr;
+
+		#Nonlinear damping
+		Dnl_g = - np.array([[Xuu*np.abs(u), 0, 0],
+						[0, Yvv*abs(v), 0],
+						[Nrr*abs(r), 0, 0]])
+		
+
+		D_g = np.add(Dl_g, Dnl_g)
+
+		
+
+		eta_dot = np.dot(J,nu);
+		nu_dot = np.dot(np.linalg.inv(M), (tauB - np.dot(C_g, nu) - np.dot(D_g, nu)))
+
+
+		out = np.concatenate((eta_dot, nu_dot))
+		
+
+		return out
+
+	#time
+	t_start, t_stop, t_step = time 
+	t = list(np.arange(t_start, t_stop, t_step))
+
+	#solve
+	sol = solve_ivp(sys, [t[0], t[-1]], init_cond, vectorized = True, max_step = t_step, t_eval = t)
+
+	#input to the sys
+	inp = np.zeros((3,len(sol.t)))
+	for i,time in enumerate(sol.t):
+		inp[:,i] = np.squeeze(input(time,sol.y[:,i]))
+
+	#get the derivatives
+	sol_dot = np.zeros((np.shape(sol.y)[0], np.shape(sol.y)[1]))
+	for tmp, i in enumerate(sol.t):
+		#sol_dot[:,tmp] = np.squeeze(sys(i, sol.y[:,tmp]))
+
+		sol_dot[3,tmp] = 2.026e-4*inp[0,tmp] + sol.y[4,tmp]*sol.y[5,tmp] - 0.0101*sol.y[3,tmp] -0.0492*np.abs(sol.y[3,tmp])*sol.y[3,tmp]
+		sol_dot[4,tmp] = 2.026e-4*inp[1,tmp] + sol.y[3,tmp]*sol.y[5,tmp] - 0.045*sol.y[4,tmp] - 0.4052*np.abs(sol.y[4,tmp])*sol.y[4,tmp]
+		sol_dot[5,tmp]= 4.78e-5*inp[2,tmp] -0.2595*(sol.y[4,tmp]+sol.y[5,tmp]) - 0.6027*np.abs(sol.y[5,tmp])*sol.y[5,tmp]
+
+
+	#final output [u,v,r,du,dv,dr,fx,fy,fz,t]
+	#output = np.concatenate((sol_dot,inp,sol.t.reshape(1,-1)), axis = 0)
+	output = np.concatenate((sol.y[3:],sol_dot[3:],inp,sol.t.reshape(1,-1)), axis = 0)
+
+
+	#x-y plot
+	plt.figure()
+	plt.title('X-Y plot')
+	plt.plot(sol.y[0], sol.y[1])
+
+
+	return output
+
+### takes in states as the output of boat_simulation and plots the states###
+def boat_sim_plot(X, show = True):
+	### plot ###
+	# u v r
+	plt.figure()
+	plt.subplot(311)
+	plt.plot(X[-1,:], X[0,:])
+	plt.ylabel('u [m/s]')
+	plt.grid()
+
+	plt.subplot(312)
+	plt.plot(X[-1,:], X[1,:])
+	plt.ylabel('v [m/s]')
+	plt.grid()
+
+	plt.subplot(313)
+	plt.plot(X[-1,:], X[2,:])
+	plt.ylabel('r [m/s]')
+	plt.xlabel('Time [s]')
+	plt.grid()
+
+	### plot ###
+	# du dv dr
+	plt.figure()
+	plt.subplot(311)
+	plt.plot(X[-1,:], X[3,:])
+	plt.ylabel('du [m/s²]')
+	plt.grid()
+
+	plt.subplot(312)
+	plt.plot(X[-1,:], X[4,:])
+	plt.ylabel('dv [m/s²]')
+	plt.grid()
+
+	plt.subplot(313)
+	plt.plot(X[-1,:], X[5,:])
+	plt.ylabel('dr [m/s²]')
+	plt.xlabel('Time [s]')
+	plt.grid()
+
+	#inputs
+	plt.figure()
+	plt.subplot(311)
+	plt.plot(X[-1,:],X[6,:])
+	plt.ylabel('fx [F]')
+	plt.grid()
+
+	plt.subplot(312)
+	plt.plot(X[-1,:],X[7,:])
+	plt.ylabel('fy [F]')
+	plt.grid()
+
+	plt.subplot(313)
+	plt.plot(X[-1,:],X[8,:])
+	plt.ylabel('fz [F]')
+	plt.xlabel('time [s]')
+	plt.grid()
+
+
+	if show:
+		plt.show()
+
+#plots the tree structure -useless
+def show_result(est_gp, X, Y, t, plot_show = False):
+	graph = pydotplus.graphviz.graph_from_dot_data(est_gp._program.export_graphviz())
+	img = Image.open(io.BytesIO(graph.create_png()))
+	tree = np.asarray(img)
+	plt.figure()
+	plt.imshow(tree)
+
+	print('RESULTING EQ: ',est_gp._program)
+	Y_est = est_gp.predict(X)
+
+	print('r²: ',est_gp.score(X,Y))
+	plt.figure()
+	plt.plot(t,Y)
+	plt.plot(t,Y_est)
+	plt.legend(['data', 'pred'])
+
+	if plot_show:
+		plt.show()
