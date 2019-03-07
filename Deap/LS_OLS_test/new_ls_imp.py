@@ -1,9 +1,7 @@
 """
-Not using the simpelEa algorithm but rather using my own 
-This makes it possible to add checkpoint and termination criterias ++ 
-
+Testing out a new LSR implementation -> as explaned in Genetic Programming and OLS, by amir and amir
+Also trying to include OLS
 """
-
 
 
 
@@ -35,10 +33,10 @@ t_val,ddx_val,dx_val,x_val,tau_val = my_lib.MSD(time = time, mdk = mdk, tau = 's
 
 pset = gp.PrimitiveSet("MAIN", 3)
 pset.addPrimitive(operator.add, 2)
-pset.addPrimitive(operator.sub, 2)
+#pset.addPrimitive(operator.sub, 2)
 pset.addPrimitive(operator.mul, 2)
-pset.addPrimitive(operator.neg, 1)
-pset.addPrimitive(operator.abs, 1)
+#pset.addPrimitive(operator.neg, 1)
+#pset.addPrimitive(operator.abs, 1)
 #pset.addPrimitive(np.sin, 1)
 #pset.addEphemeralConstant("randUn", lambda: random.randint(-1,1)) ## -no need to add constants if there are no constants in the equation
 
@@ -57,24 +55,152 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 toolbox.register("compile", gp.compile, pset=pset)
 
 
+subtree_list = []
+def split_tree(individual, ):
 
-def eval_fit(individual, ddx, dx, x, tau):
-	func = toolbox.compile(expr=individual)
+	print(individual)
+	nodes, edges, labels = gp.graph(individual)
+	print('-----------')
 
-	#Least Squares Regression
+	if labels[0] == 'add' or labels[0] == 'sub':
+		i = 2
+		root = labels[0]
+		subtree1_root = 1
+		
+		
+		for level,node in edges[1:]:
+			if level == 0:
+				subtree2_root = node
+			else: 
+				continue
+
+		F1 = individual[individual.searchSubtree(subtree1_root)]
+		string = ' '
+		for item in F1:
+			if item.arity == 2:
+				string = string + item.name + '('
+			if item.arity == 0:
+				if string[-1] == '(':
+					string = string + item.format() +','
+				elif string[-1] == ',':
+					string = string + item.format() +')'
+				else: 
+					string = string + item.format()
+
+
+		#print(string)
+		new_ind = gp.PrimitiveTree.from_string(string,pset)
+		func1 = toolbox.compile(expr=new_ind)
+		subtree_list.append(func1)
+		print(subtree_list)
+
+		split_tree(new_ind)
+		exit()
+
+			
+			
+		
+
+		#sub_tr1 = []
+		#sub_tr2 = []		
+		#sub_tr1.append(labels[1])
+		# for level,node in edges[1:]:
+		# 	if level == 0:
+		# 		sub_tr2.append(labels[node])
+		# 		sub_tr2_root = node
+		# 		break
+		# 	else:
+		# 		sub_tr1.append(labels[node])
+
+		# for level,node in edges[sub_tr2_root:]:
+		# 	sub_tr2.append(labels[node])
+
+		# print(sub_tr1)
+		# print(sub_tr2)
+
+
+	"""
+	sli = individual.searchSubtree(0)
+
+
+
+
+	#print(type(individual[sli][0]))
+	#print(individual[sli][0].format(1,2))
+	for i, prim in enumerate(individual):
+		#if prim.arity == 0: #terminal node
+		#	print(prim.format())
+		#if prim.arity == 1: # neg, abs
+		#	print(prim.format('lol'))
+		if prim.arity == 2 and (prim.name == 'add' or prim.name == 'sub'):
+			print(prim.name)
+
+
+
+	# string = ""
+	# stack = []
+	# for node in individual:
+	# 	stack.append((node, []))
+
+	# 	while len(stack[-1][1]) == stack[-1][0].arity:
+	# 		print(stack)
+	# 		prim, args = stack.pop()
+	# 		string = prim.format(*args)
+	# 		if len(stack) == 0:
+	# 			break   # If stack is empty, all nodes should have been seen
+	# 		stack[-1][1].append(string)
+
 	
-	def fun(X):
-		tmp = func(X[0]*dx, X[1]*x, X[2]*tau)
-		tmp2 = (ddx-tmp)**2
-		tmp3 = np.squeeze(tmp2)
+	ind_str = str(individual)
 
-		return tmp3
+	print(ind_str)
+	ind_str = 'mul(1.1,'+ind_str+')'
+	print(ind_str)
 
-	x0 = np.array([1,1,1])
-	sol = optimize.least_squares(fun,x0)
+	a = gp.PrimitiveTree.from_string(ind_str,pset)
+	print(a)
+	"""
+	exit()
 
-	mse = math.fsum((ddx - func(sol.x[0]*dx, sol.x[1]*x, sol.x[2]*tau))**2)/len(tau)
-	return (mse,)
+
+
+
+
+
+
+old_LSR = False
+new_LSR = True
+def eval_fit(individual, ddx, dx, x, tau):
+	split_tree(individual)
+	func = toolbox.compile(expr=individual)
+	if old_LSR:
+		# old Least Squares Regression
+		def fun(X):
+			tmp = func(X[0]*dx, X[1]*x, X[2]*tau)
+			tmp2 = (ddx-tmp)**2
+			tmp3 = np.squeeze(tmp2)
+
+			return tmp3
+
+		x0 = np.array([1,1,1])
+		sol = optimize.least_squares(fun,x0)
+
+		mse = math.fsum((ddx - func(sol.x[0]*dx, sol.x[1]*x, sol.x[2]*tau))**2)/len(tau)
+		return (mse,)
+
+
+	if new_LSR:
+		# new Least Squares Regression
+
+		a = [1,1,1]
+		np.linalg.lstsq()
+
+
+
+		#y = ddx
+		#F = 
+
+		#p = np.dot(np.dot(np.transpose(F), F), np.dot(np.transpose(F), y)
 
 
 toolbox.register("evaluate", eval_fit, ddx = ddx, dx = dx, x = x, tau = tau)
@@ -82,8 +208,8 @@ toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=4))
-toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=4))
+toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=10))
+toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=10))
 
 ### main algorithm ##
 #constants
@@ -125,6 +251,26 @@ for gen in range(0,generations):
 	print('min: ',record['min'])
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
 	#terminate? - check with validation data
 	if record['min'] < 1e-6:
 		func = toolbox.compile(expr=hof[0])
@@ -157,3 +303,4 @@ func = toolbox.compile(expr=hof[0])
 new_str, sol = my_lib.new_string_from_LSR(func, hof[0], ddx, dx, x, tau)
 	
 print(new_str)
+"""
