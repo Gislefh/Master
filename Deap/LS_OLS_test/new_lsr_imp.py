@@ -171,147 +171,137 @@ roots = []
 # 	"""
 	
 #works for arity 0 and 2 and only for add (not sub)
-# def split_tree(individual):
+def split_tree(individual):
 	
-# 	def tree_trav(individual):
-# 		nodes, edges, labels = gp.graph(individual)
-# 		main_roots = []
+	def tree_trav(individual):
+		nodes, edges, labels = gp.graph(individual)
+		main_roots = []
 
-# 		#is the first root add or sub
-# 		if labels[0] == 'add':# or labels[0] == 'sub':
-# 			main_roots.append(nodes[0])
-# 		else:
-# 			return None
+		#is the first root add or sub
+		if labels[0] == 'add':# or labels[0] == 'sub':
+			main_roots.append(nodes[0])
+		else:
+			return None
 
-# 		#find the main roots
-# 		for node in sorted(nodes):
-# 			if labels[node] == 'add':# or labels[node] == 'sub':
-# 				if node not in main_roots:
-# 					for edge in edges: 
-# 						if node == edge[1] and edge[0] in main_roots: #if the previus node is in roots
-# 							main_roots.append(node)
+		#find the main roots
+		for node in sorted(nodes):
+			if labels[node] == 'add':# or labels[node] == 'sub':
+				if node not in main_roots:
+					for edge in edges: 
+						if node == edge[1] and edge[0] in main_roots: #if the previus node is in roots
+							main_roots.append(node)
 
-# 		for root in main_roots:
-# 			for edge in edges:
-# 				if edge[0] in main_roots:
-# 					if edge[1] not in main_roots and edge[1] not in roots:					
-# 						roots.append(edge[1])
-# 		return main_roots
+		for root in main_roots:
+			for edge in edges:
+				if edge[0] in main_roots:
+					if edge[1] not in main_roots and edge[1] not in roots:					
+						roots.append(edge[1])
+		return main_roots
 
-# 	def ext_funcs(individual):
-# 		for root in roots:
+	def ext_funcs(individual):
+		for root in roots:
 
-# 			F = individual[individual.searchSubtree(root)]
-# 			string = ' '
-# 			for item in F:
-# 				if item.arity == 2:
-# 					if string[-1] == ')':
-# 						string = string + ',' + item.name + '('	
-# 					elif string[-1] == ' ':
-# 						string = string + item.name + '('
-# 					else:
-# 						string = string + item.name +'('
+			F = individual[individual.searchSubtree(root)]
+			string = ' '
+			for item in F:
+				if item.arity == 2:
+					if string[-1] == ')':
+						string = string + ',' + item.name + '('	
+					elif string[-1] == ' ':
+						string = string + item.name + '('
+					else:
+						string = string + item.name +'('
 
-# 				if item.arity == 0:
-# 					if string[-1] == '(':
-# 						string = string + item.format() +','
-# 					elif string[-1] == ',':
-# 						string = string + item.format() +')'
-# 					elif string[-1] == ')':
-# 						string = string +','+ item.format() +')'
-# 					else: 
-# 						string = string + item.format()
+				if item.arity == 0:
+					if string[-1] == '(':
+						string = string + item.format() +','
+					elif string[-1] == ',':
+						string = string + item.format() +')'
+					elif string[-1] == ')':
+						string = string +','+ item.format() +')'
+					else: 
+						string = string + item.format()
 
-# 			#print('sub function: ',string)
-# 			str_list.append(string)
-# 			new_ind = gp.PrimitiveTree.from_string(string,pset)
-# 			func1 = toolbox.compile(expr=new_ind)
-# 			subtree_list.append(func1)
+			#print('sub function: ',string)
+			str_list.append(string)
+			new_ind = gp.PrimitiveTree.from_string(string,pset)
+			func1 = toolbox.compile(expr=new_ind)
+			subtree_list.append(func1)
 			
-# 	subtree_list = []
-# 	str_list = []
-# 	roots = []
-# 	main_roots = tree_trav(individual)
-# 	if main_roots == None:
-# 		str_list.append(str(individual))
-# 		return [toolbox.compile(expr=individual)], str_list
+	subtree_list = []
+	str_list = []
+	roots = []
+	main_roots = tree_trav(individual)
+	if main_roots == None:
+		str_list.append(str(individual))
+		return [toolbox.compile(expr=individual)], str_list
 
-# 	ext_funcs(individual)
-# 	return subtree_list, str_list
-
-
-# def eval_fit_new(individual, ddx, dx, x, tau):
-# 	funcs, str_list = split_tree(individual)
-# 	F_list = []
-# 	#print(individual)
-
-# 	#top root is not 'add'
-# 	if len(funcs) == 1:
-# 		F = funcs[0](dx,x,tau)
-# 		F_trans = np.transpose(F)
-# 		p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
+	ext_funcs(individual)
+	return subtree_list, str_list
 
 
-# 	#top root is 'add'
-# 	else:
-# 		for func in funcs:
-# 			F_list.append(func)
-# 		F = np.zeros((len(ddx), len(F_list)))		
-# 		for i, function in enumerate(F_list):
-# 			F[:,i] = np.squeeze(function(dx,x,tau))
+def eval_fit_new(individual, ddx, dx, x, tau, return_str = False):
+	funcs, str_list = split_tree(individual)
+	F_list = []
+	#print(individual)
 
-# 		#p = np.dot(np.dot(np.transpose(np.dot(np.linalg.pinv(F),F)),F),ddx)
-# 		#p = np.dot(np.dot(np.linalg.pinv(F),F),np.dot(np.transpose(F),ddx)) #pseudo inverse? vet ikke hvordan det funker tbh
-# 		#F_inv = np.linalg.pinv(F)
-# 		F_trans = np.transpose(F)
-# 		#p = np.dot(np.dot(np.dot(F_inv,F),F_trans),ddx)
-# 		try:
-# 			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
-# 		except:
-# 			print('Singular Matrix for individ:', individual)
-# 			mse = 100 # large number
-# 			return(mse,)
+	#top root is not 'add'
+	if len(funcs) == 1:
+		F = funcs[0](dx,x,tau)
+		F_trans = np.transpose(F)
 
-# 	tot_func = np.zeros((len(ddx), 1))
-# 	for i, func in enumerate(funcs):
-# 		tot_func = np.add(tot_func, p[i]*func(dx,x,tau))
-
-# 	mse = math.fsum((ddx-tot_func)**2)/len(ddx)
-
-# 	#show eq:
-# 	if 0:
-# 		locals = {
-# 			'mul': lambda x, y : x * y,
-# 			'add': lambda x, y : x + y,
-# 			'add3': lambda x, y, z: x+y+z,
-# 			'sub': lambda x, y : x - y,
-# 			'protectedDiv': lambda x, y: x / y,
-# 			'neg': lambda x: -x,
-# 			'sin': lambda x: sin(x),
-# 			'cos': lambda x: cos(x),
-# 			'abs': lambda x: np.abs(x)#x if x >= 0 else -x
-# 		}
-# 		tot_str = ''
-# 		for i, func_str in enumerate(str_list):
-# 			tot_str = tot_str +'+'+ str(p[i][0])+ '*' +func_str
-# 		print(sympify(tot_str,locals = locals))
+		p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
 
 
-# 		#plt.figure()
-# 		#plt.title('mse: '+str(mse))
-# 		#plt.plot(t,tot_func)
-# 		#plt.plot(t,ddx)
-# 		#plt.legend(['estimated', 'acctual'])
-# 		#plt.show()
-# 		#exit()
+	#top root is 'add'
+	else:
+		for func in funcs:
+			F_list.append(func)
+		F = np.zeros((len(ddx), len(F_list)))
 
-# 	return(mse,)
+		for i, function in enumerate(F_list):
+			F[:,i] = np.squeeze(function(dx,x,tau))
+
+		F_trans = np.transpose(F)
+		try:
+			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
+		except:
+			print('Singular Matrix for: ', individual)
+			mse = 1000 # large number
+			return(mse,)
+
+	tot_func = np.zeros((len(ddx), 1))
+	for i, func in enumerate(funcs):
+		tot_func = np.add(tot_func, p[i]*func(dx,x,tau))
+
+	mse = math.fsum((ddx-tot_func)**2)/len(ddx)
+
+	#show eq:
+	if return_str:
+		locals = {
+			'mul': lambda x, y : x * y,
+			'add': lambda x, y : x + y,
+			'add3': lambda x, y, z: x+y+z,
+			'sub': lambda x, y : x - y,
+			'protectedDiv': lambda x, y: x / y,
+			'neg': lambda x: -x,
+			'sin': lambda x: sin(x),
+			'cos': lambda x: cos(x),
+			'abs': lambda x: np.abs(x)#x if x >= 0 else -x
+		}
+		tot_str = ''
+		for i, func_str in enumerate(str_list):
+			tot_str = tot_str +'+'+ str(p[i][0])+ '*' +func_str
+		function_string = sympify(tot_str,locals = locals)
+		return function_string
+
+	return(mse,)
 
 
 
 #test function
-if 0:
-	individual = 'add(x,add(tau,dx))'
+if 1:
+	individual = 'add(add(dx,tau),mul(x,tau))'
 	individual = gp.PrimitiveTree.from_string(individual,pset)
 	eval_fit_new(individual, ddx, dx, x, tau)
 	exit()
@@ -340,7 +330,7 @@ def eval_fit(individual, ddx, dx, x, tau):
 
 
 
-toolbox.register("evaluate", my_lib.eval_fit, ddx = ddx, dx = dx, x = x, tau = tau, pset = pset)
+toolbox.register("evaluate", eval_fit_new, ddx = ddx, dx = dx, x = x, tau = tau, return_str= False)
 toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
@@ -387,8 +377,14 @@ for gen in range(0,generations):
 	population = toolbox.select(population, k=len(population))
 	print('min: ',record['min'])
 
-print(hof[0])
 
+
+	#test result on validation set
+	if record['min'] < 1e-6:
+		mse = eval_fit_new(hof[0], ddx_val, dx_val, x_val, tau_val, return_str = False)
+		if mse[0] < 1e-6:
+			print('Final result:',eval_fit_new(hof[0], ddx_val, dx_val, x_val, tau_val, return_str = True))
+			break
 
 
 
