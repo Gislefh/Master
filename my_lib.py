@@ -406,17 +406,17 @@ def boat_sim_plot(X, show = True):
 	plt.figure()
 	plt.subplot(311)
 	plt.plot(X[-1,:],X[6,:])
-	plt.ylabel('fx [F]')
+	plt.ylabel('tau x [N]')
 	plt.grid()
 
 	plt.subplot(312)
 	plt.plot(X[-1,:],X[7,:])
-	plt.ylabel('fy [F]')
+	plt.ylabel('tau y [N]')
 	plt.grid()
 
 	plt.subplot(313)
 	plt.plot(X[-1,:],X[8,:])
-	plt.ylabel('fz [F]')
+	plt.ylabel('tau z [Nm]')
 	plt.xlabel('time [s]')
 	plt.grid()
 
@@ -447,155 +447,155 @@ def show_result(est_gp, X, Y, t, plot_show = False):
 
 
 
-""" ----------------- LEAST SQUARES ------------
-least squares that is much faster than the least squares regression previusly implemented
-Current implementation works with MSD system. calls on split_tree() 
-TODO:   - fix issues with singularity
-		- make it compabile with arity 1 functions. 
+# """ ----------------- LEAST SQUARES ------------
+# least squares that is much faster than the least squares regression previusly implemented
+# Current implementation works with MSD system. calls on split_tree(), only works with arity 0 and 2 functions
+# TODO:   - fix issues with singularity
+# 		- make it compabile with arity 1 functions. 
 
-_IN_ 
-individual: 	the function 
-ddx,dx,x,tau: 	the data
+# _IN_ 
+# individual: 	the function 
+# ddx,dx,x,tau: 	the data
 
-_OUT_
-mse: tuple with (mse,), the mean square error. 
+# _OUT_
+# mse: tuple with (mse,), the mean square error. 
 
-"""
+# """
 
-def eval_fit(individual, ddx, dx, x, tau, pset):
-	funcs, str_list = split_tree(individual, pset)
-	F_list = []
-	#print(individual)
+# def eval_fit(individual, ddx, dx, x, tau, pset):
+# 	funcs, str_list = split_tree(individual, pset)
+# 	F_list = []
+# 	#print(individual)
 
-	#top root is not 'add'
-	if len(funcs) == 1:
-		F = funcs[0](dx,x,tau)
-		F_trans = np.transpose(F)
-		p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
-
-
-	#top root is 'add'
-	else:
-		for func in funcs:
-			F_list.append(func)
-		F = np.zeros((len(ddx), len(F_list)))		
-		for i, function in enumerate(F_list):
-			F[:,i] = np.squeeze(function(dx,x,tau))
-
-		#p = np.dot(np.dot(np.transpose(np.dot(np.linalg.pinv(F),F)),F),ddx)
-		#p = np.dot(np.dot(np.linalg.pinv(F),F),np.dot(np.transpose(F),ddx)) #pseudo inverse? vet ikke hvordan det funker tbh
-		#F_inv = np.linalg.pinv(F)
-		F_trans = np.transpose(F)
-		#p = np.dot(np.dot(np.dot(F_inv,F),F_trans),ddx)
-		try:
-			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
-		except:
-			print('Singular Matrix for individ:', individual)
-			mse = 100 # large number
-			return(mse,)
-
-	tot_func = np.zeros((len(ddx), 1))
-	for i, func in enumerate(funcs):
-		tot_func = np.add(tot_func, p[i]*func(dx,x,tau))
-
-	mse = math.fsum((ddx-tot_func)**2)/len(ddx)
-
-	#show eq:
-	if 0:
-		locals = {
-			'mul': lambda x, y : x * y,
-			'add': lambda x, y : x + y,
-			'add3': lambda x, y, z: x+y+z,
-			'sub': lambda x, y : x - y,
-			'protectedDiv': lambda x, y: x / y,
-			'neg': lambda x: -x,
-			'sin': lambda x: sin(x),
-			'cos': lambda x: cos(x),
-			'abs': lambda x: np.abs(x)#x if x >= 0 else -x
-		}
-		tot_str = ''
-		for i, func_str in enumerate(str_list):
-			tot_str = tot_str +'+'+ str(p[i][0])+ '*' +func_str
-		print(sympify(tot_str,locals = locals))
+# 	#top root is not 'add'
+# 	if len(funcs) == 1:
+# 		F = funcs[0](dx,x,tau)
+# 		F_trans = np.transpose(F)
+# 		p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
 
 
-		#plt.figure()
-		#plt.title('mse: '+str(mse))
-		#plt.plot(t,tot_func)
-		#plt.plot(t,ddx)
-		#plt.legend(['estimated', 'acctual'])
-		#plt.show()
-		#exit()
+# 	#top root is 'add'
+# 	else:
+# 		for func in funcs:
+# 			F_list.append(func)
+# 		F = np.zeros((len(ddx), len(F_list)))		
+# 		for i, function in enumerate(F_list):
+# 			F[:,i] = np.squeeze(function(dx,x,tau))
 
-	return(mse,)
+# 		#p = np.dot(np.dot(np.transpose(np.dot(np.linalg.pinv(F),F)),F),ddx)
+# 		#p = np.dot(np.dot(np.linalg.pinv(F),F),np.dot(np.transpose(F),ddx)) #pseudo inverse? vet ikke hvordan det funker tbh
+# 		#F_inv = np.linalg.pinv(F)
+# 		F_trans = np.transpose(F)
+# 		#p = np.dot(np.dot(np.dot(F_inv,F),F_trans),ddx)
+# 		try:
+# 			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
+# 		except:
+# 			print('Singular Matrix for individ:', individual)
+# 			mse = 100 # large number
+# 			return(mse,)
+
+# 	tot_func = np.zeros((len(ddx), 1))
+# 	for i, func in enumerate(funcs):
+# 		tot_func = np.add(tot_func, p[i]*func(dx,x,tau))
+
+# 	mse = math.fsum((ddx-tot_func)**2)/len(ddx)
+
+# 	#show eq:
+# 	if 0:
+# 		locals = {
+# 			'mul': lambda x, y : x * y,
+# 			'add': lambda x, y : x + y,
+# 			'add3': lambda x, y, z: x+y+z,
+# 			'sub': lambda x, y : x - y,
+# 			'protectedDiv': lambda x, y: x / y,
+# 			'neg': lambda x: -x,
+# 			'sin': lambda x: sin(x),
+# 			'cos': lambda x: cos(x),
+# 			'abs': lambda x: np.abs(x)#x if x >= 0 else -x
+# 		}
+# 		tot_str = ''
+# 		for i, func_str in enumerate(str_list):
+# 			tot_str = tot_str +'+'+ str(p[i][0])+ '*' +func_str
+# 		print(sympify(tot_str,locals = locals))
 
 
-def split_tree(individual, pset):
+# 		#plt.figure()
+# 		#plt.title('mse: '+str(mse))
+# 		#plt.plot(t,tot_func)
+# 		#plt.plot(t,ddx)
+# 		#plt.legend(['estimated', 'acctual'])
+# 		#plt.show()
+# 		#exit()
+
+# 	return(mse,)
+
+
+# def split_tree(individual, pset):
 	
-	def tree_trav(individual):
-		nodes, edges, labels = gp.graph(individual)
-		main_roots = []
+# 	def tree_trav(individual):
+# 		nodes, edges, labels = gp.graph(individual)
+# 		main_roots = []
 
-		#is the first root add or sub
-		if labels[0] == 'add':# or labels[0] == 'sub':
-			main_roots.append(nodes[0])
-		else:
-			return None
+# 		#is the first root add or sub
+# 		if labels[0] == 'add':# or labels[0] == 'sub':
+# 			main_roots.append(nodes[0])
+# 		else:
+# 			return None
 
-		#find the main roots
-		for node in sorted(nodes):
-			if labels[node] == 'add':# or labels[node] == 'sub':
-				if node not in main_roots:
-					for edge in edges: 
-						if node == edge[1] and edge[0] in main_roots: #if the previus node is in roots
-							main_roots.append(node)
+# 		#find the main roots
+# 		for node in sorted(nodes):
+# 			if labels[node] == 'add':# or labels[node] == 'sub':
+# 				if node not in main_roots:
+# 					for edge in edges: 
+# 						if node == edge[1] and edge[0] in main_roots: #if the previus node is in roots
+# 							main_roots.append(node)
 
-		for root in main_roots:
-			for edge in edges:
-				if edge[0] in main_roots:
-					if edge[1] not in main_roots and edge[1] not in roots:					
-						roots.append(edge[1])
-		return main_roots
+# 		for root in main_roots:
+# 			for edge in edges:
+# 				if edge[0] in main_roots:
+# 					if edge[1] not in main_roots and edge[1] not in roots:					
+# 						roots.append(edge[1])
+# 		return main_roots
 
-	def ext_funcs(individual):
-		for root in roots:
+# 	def ext_funcs(individual):
+# 		for root in roots:
 
-			F = individual[individual.searchSubtree(root)]
-			string = ' '
-			for item in F:
-				if item.arity == 2:
-					if string[-1] == ')':
-						string = string + ',' + item.name + '('	
-					elif string[-1] == ' ':
-						string = string + item.name + '('
-					else:
-						string = string + item.name +'('
+# 			F = individual[individual.searchSubtree(root)]
+# 			string = ' '
+# 			for item in F:
+# 				if item.arity == 2:
+# 					if string[-1] == ')':
+# 						string = string + ',' + item.name + '('	
+# 					elif string[-1] == ' ':
+# 						string = string + item.name + '('
+# 					else:
+# 						string = string + item.name +'('
 
-				if item.arity == 0:
-					if string[-1] == '(':
-						string = string + item.format() +','
-					elif string[-1] == ',':
-						string = string + item.format() +')'
-					elif string[-1] == ')':
-						string = string +','+ item.format() +')'
-					else: 
-						string = string + item.format()
+# 				if item.arity == 0:
+# 					if string[-1] == '(':
+# 						string = string + item.format() +','
+# 					elif string[-1] == ',':
+# 						string = string + item.format() +')'
+# 					elif string[-1] == ')':
+# 						string = string +','+ item.format() +')'
+# 					else: 
+# 						string = string + item.format()
 
-			#print('sub function: ',string)
-			str_list.append(string)
-			new_ind = gp.PrimitiveTree.from_string(string,pset)
-			func1 = toolbox.compile(expr=new_ind)
-			subtree_list.append(func1)
+# 			#print('sub function: ',string)
+# 			str_list.append(string)
+# 			new_ind = gp.PrimitiveTree.from_string(string,pset)
+# 			func1 = toolbox.compile(expr=new_ind)
+# 			subtree_list.append(func1)
 			
-	subtree_list = []
-	str_list = []
-	roots = []
-	main_roots = tree_trav(individual)
-	if main_roots == None:
-		str_list.append(str(individual))
-		return [toolbox.compile(expr=individual)], str_list
+# 	subtree_list = []
+# 	str_list = []
+# 	roots = []
+# 	main_roots = tree_trav(individual)
+# 	if main_roots == None:
+# 		str_list.append(str(individual))
+# 		return [toolbox.compile(expr=individual)], str_list
 
-	ext_funcs(individual)
-	return subtree_list, str_list
+# 	ext_funcs(individual)
+# 	return subtree_list, str_list
 
-######
+# ######

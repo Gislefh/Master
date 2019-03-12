@@ -29,7 +29,8 @@ from pytictoc import TicToc
 
 
 #time
-sim_time = [0, 50, 0.1]
+sim_time = [0, 400, 0.1]
+
 
 #--inputs--#
 def inp_step_x(t,states):
@@ -67,13 +68,81 @@ def inp_step_series(t,states):
 
 	else:
 		return [[0],[0],[0]]
+def steps_and_square(t,states):
+	if t < 5:
+		return [[0],[0],[0]]
+
+	elif t < 20:
+		return [[4000],[0],[0]]
+
+	elif t < 40:
+		return [[0],[1000],[0]]
+
+	elif t < 60:
+		return [[0],[0],[1000]]
+
+	elif t < 80:
+		return [[0],[0],[-1000]]
+
+	elif t < 100:
+		return [[0],[-1000],[1000]]
+
+	elif t < 120:
+		return [[2000],[0],[0]]
+
+	elif t < 140:
+		return [[0],[0],[-200]]
+
+	elif t < 160:
+		return [[300],[0],[0]]
+
+	elif t < 250:
+		return [[0],[1500 * signal.square(t/5)],[700 * signal.square(t/3)]]
+
+	elif t > 270 and t < 300:
+		return [[1500 * signal.square(t/3) + 1500],[0],[0]]
+
+	elif t > 320 and t < 400:
+		return [[2000 * sin(t/4) +2000],[0],[0]]
+	
+	elif t > 420 and t < 460:
+		return [[2*t],[0],[0]]
+
+	# elif t > 500 and t < 600:
+	# 	if states[3] < 5: #surge speed
+	# 		fx = 8000
+	# 	else:
+	# 		fx = 3000
+	# 	return [[fx],[0],[0]]
+
+
+	else:
+		return [[0],[0],[0]]
+def inp_step_x_y_z(t,states):
+	if t < 5:
+		return [[0],[0],[0]]
+	elif t < 55:
+		return [[-2000],[0],[0]]
+	elif t < 105:
+		return [[0],[-500],[0]]
+	elif t < 155:
+		return [[0],[0],[-200]]	
+	elif t < 205:
+		return [[1000],[0],[0]]	
+	elif t < 255:
+		return [[0],[700],[0]]	
+	elif t < 305:
+		return [[0],[0],[200]]	
+	else:
+		return [[0],[0],[0]]
 
 ### RUN SIM  ###
 
-X = my_lib.boat_simulation(inp_step_series, time = sim_time)
-X_val = my_lib.boat_simulation(inp_step_x, time = sim_time)
+X = my_lib.boat_simulation(inp_step_x_y_z, time = sim_time)
+X_val = my_lib.boat_simulation(steps_and_square, time = sim_time)
 
 #my_lib.boat_sim_plot(X, show = True)
+#exit()
 
 
 
@@ -81,6 +150,7 @@ X_val = my_lib.boat_simulation(inp_step_x, time = sim_time)
 pset = gp.PrimitiveSet("MAIN", 6)
 pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.mul, 2)
+pset.addPrimitive(operator.abs, 1)
 
 #Variable names 
 pset.renameArguments(ARG0='u')
@@ -102,7 +172,8 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 toolbox.register("compile", gp.compile, pset=pset)
 
 
-#works for arity 0 and 2 and only for add (not sub)
+#works for arity 0, 1 and 2 and only for add (not sub)
+#TODO: FIX string med flere paranteser på slutten <-----
 def split_tree(individual):
 	
 	def tree_trav(individual):
@@ -134,9 +205,20 @@ def split_tree(individual):
 		for root in roots:
 
 			F = individual[individual.searchSubtree(root)]
+			last_ar =2
 			string = ' '
 			for item in F:
 				if item.arity == 2:
+					last_ar = 2
+					if string[-1] == ')':
+						string = string + ',' + item.name + '('	
+					elif string[-1] == ' ':
+						string = string + item.name + '('
+					else:
+						string = string + item.name +'('
+
+				if item.arity == 1:
+					last_ar = 2
 					if string[-1] == ')':
 						string = string + ',' + item.name + '('	
 					elif string[-1] == ' ':
@@ -145,15 +227,16 @@ def split_tree(individual):
 						string = string + item.name +'('
 
 				if item.arity == 0:
-					if string[-1] == '(':
+					if string[-1] == '(' and last_ar ==2:
 						string = string + item.format() +','
+					elif string[-1] == '(' and last_ar ==1:
+						string = string + item.format() +')'
 					elif string[-1] == ',':
 						string = string + item.format() +')'
 					elif string[-1] == ')':
 						string = string +','+ item.format() +')'
 					else: 
 						string = string + item.format()
-
 			#print('sub function: ',string)
 			str_list.append(string)
 			new_ind = gp.PrimitiveTree.from_string(string,pset)
@@ -170,7 +253,6 @@ def split_tree(individual):
 
 	ext_funcs(individual)
 	return subtree_list, str_list
-
 
 def eval_fit_new(individual, u, v, r, tau_x, tau_y, tau_z, du, return_str = False):
 	#print('individual: ',individual)
@@ -293,18 +375,21 @@ for gen in range(0,generations):
 	record = stats.compile(pop)
 	logbook.record(gen=gen, evals=len(invalid_ind), **record)
 	pop = toolbox.select(pop, k=len(pop))
-	print('min: ',record['min'])
+	print('Best test set score: ',record['min'])
 
-
+	print('validation score: ',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = False)[0])
+	
 
 	#test result on validation set
 	if record['min'] < 1e-8:
-		mse = eval_fit_new(hof[0], u = X[0], v = X[1], r = X[2], tau_x = X[6], tau_y = X[7], tau_z = X[8], du = X[3], return_str = False)
+		mse = eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = False)
 		print('mse for validation: ', mse)
 		if mse[0] < 1e-6:
-			print('Final result:',eval_fit_new(hof[0], u = X[0], v = X[1], r = X[2], tau_x = X[6], tau_y = X[7], tau_z = X[8], du = X[3], return_str = True))
+			print('eq: ', hof[0])
+			print('Final result:',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = True))
 			print(hof[0])
 			break
+
 
 
 
