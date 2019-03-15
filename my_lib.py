@@ -445,6 +445,169 @@ def show_result(est_gp, X, Y, t, plot_show = False):
 		plt.show()
 
 
+### --- jet model ---
+def jet_model(nu, jet_rpm, delta_nozzle):
+	#constants
+	lever_CGtowj_port = [-3.82, -0.475]
+	lever_CGtowj_stb = [-3.82, 0.475]
+	rpm_slew_rate = [2000, -2000]
+	nozzle_slew_rate = [1.3464, -1.3464]
+	rpm_min_max = [0, 2000]
+
+	if jet_rpm > rpm_min_max[1]:
+		jet_rpm = rpm_min_max[1]
+	elif jet_rpm < rpm_min_max[0]:
+		jet_rpm = rpm_min_max[0]
+
+	
+	if 0:#prev_jet_input and prev_noz_input:
+		#rate limiter rpm
+		prev_jet_input.append(jet_rpm)
+		jet_now = prev_input[-1]
+		jet_prev = prev_input[-2]
+
+		rate = (jet_now - jet_prev)/(t_now-t_prev)
+		if rate > rpm_slew_rate[0]:
+			new_rpm = (t_now-t_prev)*rpm_slew_rate[0] + jet_prev
+		elif rate < rpm_slew_rate[1]:
+			new_rpm = (t_now-t_prev)*rpm_slew_rate[1] + jet_prev
+
+		#rate limiter nozzle
+		prev_noz_input.append(delta_nozzle)
+		jet_now = prev_noz_input[-1]
+		jet_prev = prev_noz_input[-2]
+		rate = (noz_now - noz_prev)/(t_now-t_prev)
+
+		if rate > nozzle_slew_rate[0]:
+			new_rpm = (t_now-t_prev)*nozzle_slew_rate[0] + jet_prev
+		elif rate < nozzle_slew_rate[1]:
+			new_rpm = (t_now-t_prev)*nozzle_slew_rate[1] + jet_prev
+
+
+
+
+
+	#rpm2thrust
+	speed = nu[0] * 1.94384 # knots 
+	a0 = 6244.15
+	a1 = -178.46
+	a2 = 0.881043
+	thrust_unscaled = a0 + a1*speed + a2*(speed**2)
+
+	r0 = 85.8316
+	r1 = -1.7935
+	r2 = 0.00533
+	rpm_scale = 1/4530*(r0 + r1*jet_rpm + r2 * (jet_rpm **2))
+
+	thrust = rpm_scale * thrust_unscaled
+
+
+	#waterjet port
+	#force
+	Fx = thrust*np.cos(delta_nozzle)
+	Fy = thrust*np.sin(delta_nozzle)
+	#moment
+	Nz_port = (lever_CGtowj_port[0]*Fy)- (lever_CGtowj_port[1]*Fx)
+	Nz_stb = (lever_CGtowj_stb[0]*Fy)- (lever_CGtowj_stb[1]*Fx)
+
+	#tau_b_port = [Fx, Fy, Nz_port]
+	#tau_b_stb = [Fx, Fy, Nz_stb]
+
+	tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
+	prev_jet_input.append(jet_rpm)
+	prev_noz_input.append(delta_nozzle)
+	return tau_b
+
+def input_WJ(t, states):
+	def jet_model(nu, jet_rpm, delta_nozzle):
+		#constants
+		lever_CGtowj_port = [-3.82, -0.475]
+		lever_CGtowj_stb = [-3.82, 0.475]
+		rpm_slew_rate = [2000, -2000]
+		nozzle_slew_rate = [1.3464, -1.3464]
+		rpm_min_max = [0, 2000]
+
+		if jet_rpm > rpm_min_max[1]:
+			jet_rpm = rpm_min_max[1]
+		elif jet_rpm < rpm_min_max[0]:
+			jet_rpm = rpm_min_max[0]
+
+		
+		if 0:#prev_jet_input and prev_noz_input:
+			#rate limiter rpm
+			prev_jet_input.append(jet_rpm)
+			jet_now = prev_input[-1]
+			jet_prev = prev_input[-2]
+
+			rate = (jet_now - jet_prev)/(t_now-t_prev)
+			if rate > rpm_slew_rate[0]:
+				new_rpm = (t_now-t_prev)*rpm_slew_rate[0] + jet_prev
+			elif rate < rpm_slew_rate[1]:
+				new_rpm = (t_now-t_prev)*rpm_slew_rate[1] + jet_prev
+
+			#rate limiter nozzle
+			prev_noz_input.append(delta_nozzle)
+			jet_now = prev_noz_input[-1]
+			jet_prev = prev_noz_input[-2]
+			rate = (noz_now - noz_prev)/(t_now-t_prev)
+
+			if rate > nozzle_slew_rate[0]:
+				new_rpm = (t_now-t_prev)*nozzle_slew_rate[0] + jet_prev
+			elif rate < nozzle_slew_rate[1]:
+				new_rpm = (t_now-t_prev)*nozzle_slew_rate[1] + jet_prev
+
+
+
+
+
+		#rpm2thrust
+		speed = nu[0] * 1.94384 # knots 
+		a0 = 6244.15
+		a1 = -178.46
+		a2 = 0.881043
+		thrust_unscaled = a0 + a1*speed + a2*(speed**2)
+
+		r0 = 85.8316
+		r1 = -1.7935
+		r2 = 0.00533
+		rpm_scale = 1/4530*(r0 + r1*jet_rpm + r2 * (jet_rpm **2))
+
+		thrust = rpm_scale * thrust_unscaled
+
+
+		#waterjet port
+		#force
+		Fx = thrust*np.cos(delta_nozzle)
+		Fy = thrust*np.sin(delta_nozzle)
+		#moment
+		Nz_port = (lever_CGtowj_port[0]*Fy)- (lever_CGtowj_port[1]*Fx)
+		Nz_stb = (lever_CGtowj_stb[0]*Fy)- (lever_CGtowj_stb[1]*Fx)
+
+		#tau_b_port = [Fx, Fy, Nz_port]
+		#tau_b_stb = [Fx, Fy, Nz_stb]
+
+		tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
+		prev_jet_input.append(jet_rpm)
+		prev_noz_input.append(delta_nozzle)
+		return tau_b
+
+	nu = states[3:6]
+	jet_rpm = 500 
+	if t < 18:
+		delta_nozzle = 0
+	elif t < 20:
+		delta_nozzle = 0.2
+		jet_rpm = 0
+	else:
+		delta_nozzle = 0
+		jet_rpm = 100
+	prev_t.append(t)
+	tau_b = jet_model(nu, jet_rpm, delta_nozzle)
+
+
+	return tau_b
+
+
 
 
 # """ ----------------- LEAST SQUARES ------------

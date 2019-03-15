@@ -29,7 +29,7 @@ from pytictoc import TicToc
 
 
 #time
-sim_time = [0, 400, 0.1]
+sim_time = [0, 200, 0.1]
 
 
 #--inputs--#
@@ -108,14 +108,6 @@ def steps_and_square(t,states):
 	elif t > 420 and t < 460:
 		return [[2*t],[0],[0]]
 
-	# elif t > 500 and t < 600:
-	# 	if states[3] < 5: #surge speed
-	# 		fx = 8000
-	# 	else:
-	# 		fx = 3000
-	# 	return [[fx],[0],[0]]
-
-
 	else:
 		return [[0],[0],[0]]
 def inp_step_x_y_z(t,states):
@@ -136,14 +128,135 @@ def inp_step_x_y_z(t,states):
 	else:
 		return [[0],[0],[0]]
 
+
+#WJ input
+prev_jet_input = []
+prev_noz_input = []
+prev_t = []
+
+def input_WJ(t, states):
+	# def jet_model(nu, jet_rpm, delta_nozzle):
+	# 	#constants
+	# 	lever_CGtowj_port = [-3.82, -0.475]
+	# 	lever_CGtowj_stb = [-3.82, 0.475]
+	# 	rpm_slew_rate = [2000, -2000]
+	# 	nozzle_slew_rate = [1.3464, -1.3464]
+	# 	rpm_min_max = [0, 2000]
+
+	# 	if jet_rpm > rpm_min_max[1]:
+	# 		jet_rpm = rpm_min_max[1]
+	# 	elif jet_rpm < rpm_min_max[0]:
+	# 		jet_rpm = rpm_min_max[0]
+
+		
+	# 	if 0:#prev_jet_input and prev_noz_input:
+	# 		#rate limiter rpm
+	# 		prev_jet_input.append(jet_rpm)
+	# 		jet_now = prev_input[-1]
+	# 		jet_prev = prev_input[-2]
+
+	# 		rate = (jet_now - jet_prev)/(t_now-t_prev)
+	# 		if rate > rpm_slew_rate[0]:
+	# 			new_rpm = (t_now-t_prev)*rpm_slew_rate[0] + jet_prev
+	# 		elif rate < rpm_slew_rate[1]:
+	# 			new_rpm = (t_now-t_prev)*rpm_slew_rate[1] + jet_prev
+
+	# 		#rate limiter nozzle
+	# 		prev_noz_input.append(delta_nozzle)
+	# 		jet_now = prev_noz_input[-1]
+	# 		jet_prev = prev_noz_input[-2]
+	# 		rate = (noz_now - noz_prev)/(t_now-t_prev)
+
+	# 		if rate > nozzle_slew_rate[0]:
+	# 			new_rpm = (t_now-t_prev)*nozzle_slew_rate[0] + jet_prev
+	# 		elif rate < nozzle_slew_rate[1]:
+	# 			new_rpm = (t_now-t_prev)*nozzle_slew_rate[1] + jet_prev
+
+
+
+
+
+	# 	#rpm2thrust
+	# 	speed = nu[0] * 1.94384 # knots 
+	# 	a0 = 6244.15
+	# 	a1 = -178.46
+	# 	a2 = 0.881043
+	# 	thrust_unscaled = a0 + a1*speed + a2*(speed**2)
+
+	# 	r0 = 85.8316
+	# 	r1 = -1.7935
+	# 	r2 = 0.00533
+	# 	rpm_scale = 1/4530*(r0 + r1*jet_rpm + r2 * (jet_rpm **2))
+
+	# 	thrust = rpm_scale * thrust_unscaled
+
+
+	# 	#waterjet port
+	# 	#force
+	# 	Fx = thrust*np.cos(delta_nozzle)
+	# 	Fy = thrust*np.sin(delta_nozzle)
+	# 	#moment
+	# 	Nz_port = (lever_CGtowj_port[0]*Fy)- (lever_CGtowj_port[1]*Fx)
+	# 	Nz_stb = (lever_CGtowj_stb[0]*Fy)- (lever_CGtowj_stb[1]*Fx)
+
+	# 	#tau_b_port = [Fx, Fy, Nz_port]
+	# 	#tau_b_stb = [Fx, Fy, Nz_stb]
+
+	# 	tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
+	# 	prev_jet_input.append(jet_rpm)
+	# 	prev_noz_input.append(delta_nozzle)
+	# 	return tau_b
+
+
+	nu = states[3:6]
+	jet_rpm = 500 
+	if t < 18:
+		delta_nozzle = 0
+	elif t < 20:
+		delta_nozzle = 0.2
+		jet_rpm = 0
+	else:
+		delta_nozzle = 0
+		jet_rpm = 100
+	prev_t.append(t)
+	tau_b = my_lib.jet_model(nu, jet_rpm, delta_nozzle)
+
+
+	return tau_b
+
+
+
 ### RUN SIM  ###
 
-X = my_lib.boat_simulation(inp_step_x_y_z, time = sim_time)
-X_val = my_lib.boat_simulation(steps_and_square, time = sim_time)
+X = my_lib.boat_simulation(input_WJ, time = sim_time)
+#X_val = my_lib.boat_simulation(inp_step_series, time = sim_time)
 
-#my_lib.boat_sim_plot(X, show = True)
-#exit()
+my_lib.boat_sim_plot(X, show = False)
 
+inputs = np.zeros((len(prev_jet_input), 2))
+inputs[:,0] = prev_jet_input
+inputs[:,1] = prev_noz_input
+plt.figure()
+plt.plot(prev_t, inputs[:, 0])
+plt.plot(prev_t, inputs[:, 1])
+plt.grid()
+plt.legend(['jet_rpm', 'jet_nozzle'])
+plt.show()
+exit()
+
+###  what eq to find.
+solve_for_du = False 
+solve_for_dv = False
+solve_for_dr = True
+if solve_for_du:
+	y = X[3]
+	y_val = X_val[3]
+if solve_for_dv:
+	y = X[4]
+	y_val = X_val[4]
+if solve_for_dr:
+	y = X[5]
+	y_val = X_val[5]
 
 
 #Operators
@@ -173,7 +286,6 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 
 #works for arity 0, 1 and 2 and only for add (not sub)
-#TODO: FIX string med flere paranteser på slutten <-----
 def split_tree(individual):
 	
 	def tree_trav(individual):
@@ -248,7 +360,7 @@ def split_tree(individual):
 	ext_funcs(individual)
 	return subtree_list, str_list
 
-def eval_fit_new(individual, u, v, r, tau_x, tau_y, tau_z, du, return_str = False):
+def eval_fit_new(individual, u, v, r, tau_x, tau_y, tau_z, y, return_str = False):
 	#print('individual: ',individual)
 	funcs, str_list = split_tree(individual)
 	F_list = []
@@ -260,7 +372,7 @@ def eval_fit_new(individual, u, v, r, tau_x, tau_y, tau_z, du, return_str = Fals
 		F = funcs[0](u,v,r,tau_x,tau_y,tau_z)
 		F_trans = np.transpose(F)
 
-		p = np.dot(np.dot(F_trans,F),np.dot(F_trans,du)) 
+		p = np.dot(np.dot(F_trans,F),np.dot(F_trans,y)) 
 		p = [p]
 
 
@@ -268,26 +380,26 @@ def eval_fit_new(individual, u, v, r, tau_x, tau_y, tau_z, du, return_str = Fals
 	else:
 		for func in funcs:
 			F_list.append(func)
-		F = np.zeros((len(du), len(F_list)))
+		F = np.zeros((len(y), len(F_list)))
 
 		for i, function in enumerate(F_list):
 			F[:,i] = np.squeeze(function(u,v,r,tau_x,tau_y,tau_z))
 
 		F_trans = np.transpose(F)
 		try:
-			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,du))  
+			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,y))  
 		except:
 			#print('Singular Matrix for: ', individual)
 			mse = 1000 # large number
 			return(mse,)
 
-	tot_func = np.zeros((len(du)))
+	tot_func = np.zeros((len(y)))
 
 	for i, func in enumerate(funcs):
 		tot_func = np.add(tot_func, p[i]*func(u,v,r,tau_x,tau_y,tau_z))
 
 
-	mse = math.fsum((du-tot_func)**2)/len(du)
+	mse = math.fsum((y-tot_func)**2)/len(y)
 
 
 	#return the simplified eq
@@ -324,7 +436,7 @@ if 0:
 
 
 
-toolbox.register("evaluate", eval_fit_new, u = X[0], v = X[1], r = X[2], tau_x = X[6], tau_y = X[7], tau_z = X[8], du = X[3], return_str = False)
+toolbox.register("evaluate", eval_fit_new, u = X[0], v = X[1], r = X[2], tau_x = X[6], tau_y = X[7], tau_z = X[8], y = y, return_str = False)
 toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
@@ -336,8 +448,8 @@ toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max
 #constants
 
 pop_size = 5000
-mate_prob = 0.2
-mut_prob = 0.6
+mate_prob = 0.5
+mut_prob = 0.3
 generations = 30
 
 #parsimony coefficient
@@ -371,20 +483,27 @@ for gen in range(0,generations):
 	pop = toolbox.select(pop, k=len(pop))
 	print('Best test set score: ',record['min'])
 
-	print('validation score: ',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = False)[0])
+	print('validation score: ',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], y = y_val, return_str = False)[0])
 	
 
 	#test result on validation set
 	if record['min'] < 1e-8:
-		mse = eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = False)
+		mse = eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], y = y_val, return_str = False)
 		print('mse for validation: ', mse)
-		if mse[0] < 1e-6:
+		if mse[0] < 1e-8:
 			print('eq: ', hof[0])
-			print('Final result:',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], du = X_val[3], return_str = True))
+			print('Final result:',eval_fit_new(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], tau_x = X_val[6], tau_y = X_val[7], tau_z = X_val[8], y = y_val, return_str = True))
 			print(hof[0])
 			break
 
 
+##history plot
+# plt.figure()
+# plt.semilogy(logbook.select('gen'),logbook.select('min'))
+# plt.xlabel('Generations')
+# plt.ylabel('Mean Sqaure Error')
+# plt.grid()
+# plt.show()
 
 
 
