@@ -18,6 +18,13 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+
+import rosbag
+import time
+from scipy import interpolate
+
+
+
 """-------- MASS SPRING DAMPER ---------
 _IN_
 time: 	[t_start, t_stop, t_step] -> start time, stop time, step length
@@ -671,155 +678,336 @@ def input_WJ(t, states):
 
 
 
-# """ ----------------- LEAST SQUARES ------------
-# least squares that is much faster than the least squares regression previusly implemented
-# Current implementation works with MSD system. calls on split_tree(), only works with arity 0 and 2 functions
-# TODO:   - fix issues with singularity
-# 		- make it compabile with arity 1 functions. 
 
-# _IN_ 
-# individual: 	the function 
-# ddx,dx,x,tau: 	the data
+"""  ------OPEN BAG-------- 
+Opens, filtes and interpolates a bag
+_IN_ 
+path:	path to bag file
+plot: 	whether or not to plot the contet, default = False 
 
-# _OUT_
-# mse: tuple with (mse,), the mean square error. 
+_OUT_ 
+X: 		[u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
+"""
+def open_bag(path, plot = False):
+	bag = rosbag.Bag(path)
+	bagContents = bag.read_messages()
+	if not bagContents:
+		print('bag is empty')
+		exit()
 
-# """
+	#save?
+	save = False
 
-# def eval_fit(individual, ddx, dx, x, tau, pset):
-# 	funcs, str_list = split_tree(individual, pset)
-# 	F_list = []
-# 	#print(individual)
-
-# 	#top root is not 'add'
-# 	if len(funcs) == 1:
-# 		F = funcs[0](dx,x,tau)
-# 		F_trans = np.transpose(F)
-# 		p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
-
-
-# 	#top root is 'add'
-# 	else:
-# 		for func in funcs:
-# 			F_list.append(func)
-# 		F = np.zeros((len(ddx), len(F_list)))		
-# 		for i, function in enumerate(F_list):
-# 			F[:,i] = np.squeeze(function(dx,x,tau))
-
-# 		#p = np.dot(np.dot(np.transpose(np.dot(np.linalg.pinv(F),F)),F),ddx)
-# 		#p = np.dot(np.dot(np.linalg.pinv(F),F),np.dot(np.transpose(F),ddx)) #pseudo inverse? vet ikke hvordan det funker tbh
-# 		#F_inv = np.linalg.pinv(F)
-# 		F_trans = np.transpose(F)
-# 		#p = np.dot(np.dot(np.dot(F_inv,F),F_trans),ddx)
-# 		try:
-# 			p = np.dot(np.linalg.inv(np.dot(F_trans,F)),np.dot(F_trans,ddx))  # correct
-# 		except:
-# 			print('Singular Matrix for individ:', individual)
-# 			mse = 100 # large number
-# 			return(mse,)
-
-# 	tot_func = np.zeros((len(ddx), 1))
-# 	for i, func in enumerate(funcs):
-# 		tot_func = np.add(tot_func, p[i]*func(dx,x,tau))
-
-# 	mse = math.fsum((ddx-tot_func)**2)/len(ddx)
-
-# 	#show eq:
-# 	if 0:
-# 		locals = {
-# 			'mul': lambda x, y : x * y,
-# 			'add': lambda x, y : x + y,
-# 			'add3': lambda x, y, z: x+y+z,
-# 			'sub': lambda x, y : x - y,
-# 			'protectedDiv': lambda x, y: x / y,
-# 			'neg': lambda x: -x,
-# 			'sin': lambda x: sin(x),
-# 			'cos': lambda x: cos(x),
-# 			'abs': lambda x: np.abs(x)#x if x >= 0 else -x
-# 		}
-# 		tot_str = ''
-# 		for i, func_str in enumerate(str_list):
-# 			tot_str = tot_str +'+'+ str(p[i][0])+ '*' +func_str
-# 		print(sympify(tot_str,locals = locals))
+	#listOfTopics = []
+	#for topic, msg, t in bagContents:
+	#	if topic not in listOfTopics:
+	#		listOfTopics.append(topic)
+	#print('TOPICS:')
+	#print(listOfTopics)
 
 
-# 		#plt.figure()
-# 		#plt.title('mse: '+str(mse))
-# 		#plt.plot(t,tot_func)
-# 		#plt.plot(t,ddx)
-# 		#plt.legend(['estimated', 'acctual'])
-# 		#plt.show()
-# 		#exit()
+	#### -- jet data --
+	cnt_jet = 0
+	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
+		cnt_jet += 1
 
-# 	return(mse,)
+	jet_data  = np.zeros((4,cnt_jet))
+	i = 0
+	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
+		# engines rpm, steering, jet time, bucket
+		jet_data[0, i] = (msg.port_shaft_rpm + msg.stbd_shaft_rpm) / 2
+		jet_data[1, i] = (msg.port_steering + msg.stbd_steering) / 2
+		jet_data[2, i] = t.to_sec()
+		jet_data[3, i] = (msg.port_reverse + msg.stbd_reverse) / 2
+		i += 1
+
+	# Set initail jet time to zero
+	jet_data[2, :] = jet_data[2, :] - jet_data[2, 0]
 
 
-# def split_tree(individual, pset):
-	
-# 	def tree_trav(individual):
-# 		nodes, edges, labels = gp.graph(individual)
-# 		main_roots = []
+	#### -- nav data --
+	cnt_nav = 0
+	for subtopic, msg, t in bag.read_messages('/usv/navp_msg'):
+		cnt_nav += 1
 
-# 		#is the first root add or sub
-# 		if labels[0] == 'add':# or labels[0] == 'sub':
-# 			main_roots.append(nodes[0])
-# 		else:
-# 			return None
+	nav_data = np.zeros((7,cnt_nav))
+	i = 0
+	for subtopic, msg, t in bag.read_messages('/usv/navp_msg'):
+		#surge, sway, yaw
+		nav_data[0, i] = msg.pose.latitude
+		nav_data[1, i] = msg.pose.longitude
+		nav_data[2, i] = msg.pose.heading
 
-# 		#find the main roots
-# 		for node in sorted(nodes):
-# 			if labels[node] == 'add':# or labels[node] == 'sub':
-# 				if node not in main_roots:
-# 					for edge in edges: 
-# 						if node == edge[1] and edge[0] in main_roots: #if the previus node is in roots
-# 							main_roots.append(node)
+		#surge, sway, yaw - Rate
+		nav_data[3, i] = msg.vel.xVelocityB
+		nav_data[4, i] = msg.vel.yVelocityB
+		nav_data[5, i] = msg.rate.zAngularRateB #prob in deg/s
 
-# 		for root in main_roots:
-# 			for edge in edges:
-# 				if edge[0] in main_roots:
-# 					if edge[1] not in main_roots and edge[1] not in roots:					
-# 						roots.append(edge[1])
-# 		return main_roots
+		# nav time
+		nav_data[6, i] = t.to_sec()
+		i += 1
 
-# 	def ext_funcs(individual):
-# 		for root in roots:
+	#set initial time to zero
+	nav_data[6, :] = nav_data[6, :] - nav_data[6, 0] 
 
-# 			F = individual[individual.searchSubtree(root)]
-# 			string = ' '
-# 			for item in F:
-# 				if item.arity == 2:
-# 					if string[-1] == ')':
-# 						string = string + ',' + item.name + '('	
-# 					elif string[-1] == ' ':
-# 						string = string + item.name + '('
-# 					else:
-# 						string = string + item.name +'('
+	####		 --Fiter--
+	#set the sample time to 0.05
+	def filter(nav_data):
+		#savgol_filter
+		sav_fil = False
+		FB_fil = False
+		spline = False
+		interpol = True
 
-# 				if item.arity == 0:
-# 					if string[-1] == '(':
-# 						string = string + item.format() +','
-# 					elif string[-1] == ',':
-# 						string = string + item.format() +')'
-# 					elif string[-1] == ')':
-# 						string = string +','+ item.format() +')'
-# 					else: 
-# 						string = string + item.format()
+		#savgol_filter
+		if sav_fil:
+			# u_smooth_deriv = signal.savgol_filter(nav_data[3, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
+			# v_smooth_deriv = signal.savgol_filter(nav_data[4, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
+			# r_smooth_deriv = signal.savgol_filter(nav_data[5, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
 
-# 			#print('sub function: ',string)
-# 			str_list.append(string)
-# 			new_ind = gp.PrimitiveTree.from_string(string,pset)
-# 			func1 = toolbox.compile(expr=new_ind)
-# 			subtree_list.append(func1)
-			
-# 	subtree_list = []
-# 	str_list = []
-# 	roots = []
-# 	main_roots = tree_trav(individual)
-# 	if main_roots == None:
-# 		str_list.append(str(individual))
-# 		return [toolbox.compile(expr=individual)], str_list
+			u_smooth = signal.savgol_filter(nav_data[3, :], 51, 4) 
+			v_smooth = signal.savgol_filter(nav_data[4, :], 51, 4) 
+			r_smooth = signal.savgol_filter(nav_data[5, :], 51, 4) 
 
-# 	ext_funcs(individual)
-# 	return subtree_list, str_list
+		#find freq
+		if 0:
+			len_ = 30
+			test_t = list(np.arange(0, len_, 0.01))
+			sp = np.fft.rfft(np.sin(test_t))
+			freq = np.fft.rfftfreq(len(test_t))
+			plt.figure()
+			plt.plot(freq, sp.real)
+			plt.grid()
+			plt.ylabel('amount?')
+			plt.xlabel('freq')
 
-# ######
+			#butter
+			order = 2
+			cuttoff = 0.003
+			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			if FB_fil:
+				sin = signal.filtfilt(b, a, np.sin(test_t)) 
+		 
+
+			plt.figure()
+			plt.plot(test_t, sin)
+			plt.plot(test_t, np.sin(test_t))
+			plt.legend(['butter', 'orig'])
+
+			plt.show()
+			exit()
+		
+		if FB_fil:
+			#butter
+			order = 2
+			cuttoff = 0.05
+			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			u_smooth = signal.filtfilt(b, a, nav_data[3, :]) 
+			v_smooth = signal.filtfilt(b, a, nav_data[4, :]) 
+			r_smooth = signal.filtfilt(b, a, nav_data[5, :]) 
+
+			#forward
+			# u_smooth = signal.lfilter(b, a, nav_data[3, :]) 
+			# v_smooth = signal.lfilter(b, a, nav_data[4, :]) 
+			# r_smooth = signal.lfilter(b, a, nav_data[5, :]) 
+		
+		#spline 
+		if spline: #NOPE
+			u_smooth = signal.gauss_spline(nav_data[3, :], 5) 
+			v_smooth = signal.gauss_spline(nav_data[4, :], 5) 
+			r_smooth = signal.gauss_spline(nav_data[5, :], 5) 
+
+		#interpolate then smooth
+		if interpol:
+			steps = 0.05
+			interp_arr = list(np.arange(nav_data[6, 0], nav_data[6, -1], steps))
+			u_int = np.interp(interp_arr, nav_data[6, :],nav_data[3, :])
+			v_int = np.interp(interp_arr, nav_data[6, :],nav_data[4, :])
+			r_int = np.interp(interp_arr, nav_data[6, :],nav_data[5, :])
+
+			order = 2
+			cuttoff = 0.3
+			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			u_smooth = signal.filtfilt(b, a, u_int) 
+			v_smooth = signal.filtfilt(b, a, v_int) 
+			r_smooth = signal.filtfilt(b, a, r_int) 
+			return u_smooth, v_smooth, r_smooth, interp_arr
+			#plot
+			if 0:
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[3, :])
+				plt.plot(interp_arr, u_int)
+				plt.plot(interp_arr, u_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('u')
+				plt.grid()
+
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[4, :])
+				plt.plot(interp_arr, v_int)
+				plt.plot(interp_arr, v_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('v')
+				plt.grid()
+
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[5, :])
+				plt.plot(interp_arr, r_int)
+				plt.plot(interp_arr, r_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('r')
+				plt.grid()
+
+				plt.show()
+		
+		return u_smooth, v_smooth, r_smooth
+	u_smooth, v_smooth, r_smooth, interp_arr = filter(nav_data)
+
+
+	#### 		-- Integrate --
+	def integrate(nav_data, u_smooth, v_smooth, r_smooth):
+		du = np.diff(nav_data[3, :],n = 1)
+		dv = np.diff(nav_data[4, :],n = 1)
+		dr = np.diff(nav_data[5, :],n = 1)
+
+		du_smo = np.diff(u_smooth ,n = 1)
+		dv_smo = np.diff(v_smooth ,n = 1)
+		dr_smo = np.diff(r_smooth ,n = 1)
+
+		#add the last signal twice 
+		du = np.concatenate((du,[du[-1]]))
+		dv = np.concatenate((dv,[dv[-1]]))
+		dr = np.concatenate((dr,[dr[-1]]))
+
+		du_smo = np.concatenate((du_smo,[du_smo[-1]]))
+		dv_smo = np.concatenate((dv_smo,[dv_smo[-1]]))
+		dr_smo = np.concatenate((dr_smo,[dr_smo[-1]]))
+
+		return du, dv, dr, du_smo, dv_smo, dr_smo
+	du, dv, dr, du_smo, dv_smo, dr_smo =  integrate(nav_data, u_smooth, v_smooth, r_smooth)
+
+
+	def interpolate(jet_data, interp_arr):
+		jet_rpm = 		np.interp(interp_arr, jet_data[2, :],jet_data[0, :])
+		nozzle_angle =	np.interp(interp_arr, jet_data[2, :],jet_data[1, :]) # not really nozzle angle but rather [-100, 100]% = [-27, 27] deg 
+		bucket = 		np.interp(interp_arr, jet_data[2, :],jet_data[3, :]) # from [-100, to 100]
+		return jet_rpm, nozzle_angle, bucket
+	jet_rpm, nozzle_angle, bucket = interpolate(jet_data, interp_arr)
+
+	#preeprossesed matrix of variables.
+	X = [u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
+	X = np.array(X)
+
+	# a test to check if the bucket is fully open in all the data. if not - start where it becomes > 95 and end if it <95
+	def bucket_fully_open(X):
+		if X[-2, 0] > 95:
+			start = 0
+		else:
+			start = -1
+		for i in range(np.shape(X)[1]):
+			if X[-2, i] > 95 and start == -1:
+				start = i
+			if X[-2, i] < 95 and start == -1:
+				continue 
+			if X[-2, i] < 95 and start != -1:
+				stop = i
+				break
+
+		X = X[:,start:stop]
+		return X
+	X = bucket_fully_open(X)
+
+	### ---Plots----
+	if plot:
+		plt.figure()
+		plt.plot(jet_data[2, :], jet_data[0, :])
+		plt.plot(jet_data[2, :], jet_data[1, :])
+		plt.plot(jet_data[2, :], jet_data[3, :])
+		plt.legend(['rpm','steering','bucket'])
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(nav_data[6, :], du)
+		plt.plot(interp_arr, du_smo)
+		plt.legend(['du', 'du_smooth'])
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6, :],dv)
+		plt.plot(interp_arr,dv_smo)
+		plt.legend(['dv', 'dv_smooth'])
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6, :],dr)
+		plt.plot(interp_arr,dr_smo)
+		plt.legend(['dr', 'dr_smooth'])
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(nav_data[6, :], nav_data[3, :], 'r.-')
+		plt.plot(interp_arr, u_smooth)
+		plt.ylabel('u')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6, :], nav_data[4, :], 'r.-')
+		plt.plot(interp_arr, v_smooth)
+		plt.ylabel('v')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6, :], nav_data[5, :], 'r.-')
+		plt.plot(interp_arr, r_smooth)
+		plt.ylabel('r')
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(211)
+		plt.plot(jet_data[2, :], jet_data[1, :])
+		plt.grid()
+		plt.ylabel('nozzle')
+		plt.subplot(212)
+		plt.plot(nav_data[6, :], nav_data[4, :])
+		plt.grid()
+		plt.ylabel('v')
+
+		plt.figure()
+		plt.plot(nav_data[0,:],nav_data[1,:])
+		plt.plot(nav_data[0,0],nav_data[1,0],'rx')
+		plt.title('XY-plot, starts at the red cross')
+
+		# plt.figure()
+		# plt.plot(nav_data[6,:],nav_data[2, :])
+		# plt.title('heading angle')
+		# plt.grid()
+		plt.show()
+
+	### --- save -- does not work any more
+	if save:
+		##  - interpolate --
+		#interpolate to jet time
+		data = np.zeros((10,len(jet_data[2, :])))
+		data[0, :] = np.interp(jet_data[2,:], nav_data[6, :],u_smooth)
+		data[1, :] = np.interp(jet_data[2,:], nav_data[6, :],v_smooth)
+		data[2, :] = np.interp(jet_data[2,:], nav_data[6, :],r_smooth)
+		data[3, :] = np.interp(jet_data[2,:], nav_data[6, :],du_smo)
+		data[4, :] = np.interp(jet_data[2,:], nav_data[6, :],dv_smo)
+		data[5, :] = np.interp(jet_data[2,:], nav_data[6, :],dr_smo)
+
+		data[6, :] = jet_data[0, :] # engine 
+		data[7, :] = jet_data[1, :] # steering
+		data[8, :] = jet_data[3, :] # bucket
+		data[9, :] = jet_data[2, :] # jet time
+
+
+		save_path = '/home/gislehalv/Master/Data/CSV Data From Bags/'
+		save_name = save_path + name + '.csv'
+		np.savetxt(save_name, data, delimiter = ',')
+
+	return X
+
