@@ -299,7 +299,7 @@ def boat_simulation(input, time = [0, 30, 0.01], init_cond = [0, 0, 0, 0, 0, 0])
 		C_A_g[1,2] = Xdu*u
 		C_A_g[2,1] = -C_A_g[1,2]
 
-		C_g = np.multiply(C_RB_g, C_A_g)
+		C_g = np.add(C_RB_g, C_A_g)
 
 		#Linear damping
 		Dl_g = -np.array([[Xu, 0, 0],
@@ -309,10 +309,12 @@ def boat_simulation(input, time = [0, 30, 0.01], init_cond = [0, 0, 0, 0, 0, 0])
 		Dl_g[2,1] = -Nr;
 
 		#Nonlinear damping
+		# Dnl_g = - np.array([[Xuu*np.abs(u), 0, 0],
+		# 				[0, Yvv*abs(v), 0],
+		# 				[Nrr*abs(r), 0, 0]])
 		Dnl_g = - np.array([[Xuu*np.abs(u), 0, 0],
 						[0, Yvv*abs(v), 0],
-						[Nrr*abs(r), 0, 0]])
-		
+						[0, 0, Nrr*abs(r)]])		
 
 		D_g = np.add(Dl_g, Dnl_g)
 
@@ -343,10 +345,10 @@ def boat_simulation(input, time = [0, 30, 0.01], init_cond = [0, 0, 0, 0, 0, 0])
 	sol_dot = np.zeros((np.shape(sol.y)[0], np.shape(sol.y)[1]))
 	for tmp, i in enumerate(sol.t):
 		#sol_dot[:,tmp] = np.squeeze(sys(i, sol.y[:,tmp]))
-
-		sol_dot[3,tmp] = 2.026e-4*inp[0,tmp] + sol.y[4,tmp]*sol.y[5,tmp] - 0.0101*sol.y[3,tmp] -0.0492*np.abs(sol.y[3,tmp])*sol.y[3,tmp]
-		sol_dot[4,tmp] = 2.026e-4*inp[1,tmp] + sol.y[3,tmp]*sol.y[5,tmp] - 0.045*sol.y[4,tmp] - 0.4052*np.abs(sol.y[4,tmp])*sol.y[4,tmp]
-		sol_dot[5,tmp]= 4.78e-5*inp[2,tmp] -0.2595*(sol.y[4,tmp]+sol.y[5,tmp]) - 0.6027*np.abs(sol.y[5,tmp])*sol.y[5,tmp]
+		sol_dot[:,tmp] = np.squeeze(sys(i, np.expand_dims(sol.y[:,tmp], axis = 1)))
+		#sol_dot[3,tmp] = 2.026e-4*inp[0,tmp] + sol.y[4,tmp]*sol.y[5,tmp] - 0.0101*sol.y[3,tmp] -0.0492*np.abs(sol.y[3,tmp])*sol.y[3,tmp]
+		#sol_dot[4,tmp] = 2.026e-4*inp[1,tmp] + sol.y[3,tmp]*sol.y[5,tmp] - 0.045*sol.y[4,tmp] - 0.4052*np.abs(sol.y[4,tmp])*sol.y[4,tmp]
+		#sol_dot[5,tmp]= 4.78e-5*inp[2,tmp] -0.2595*(sol.y[4,tmp]+sol.y[5,tmp]) - 0.6027*np.abs(sol.y[5,tmp])*sol.y[5,tmp]
 
 
 	#final output [u,v,r,du,dv,dr,fx,fy,fz,t]
@@ -362,7 +364,7 @@ def boat_simulation(input, time = [0, 30, 0.01], init_cond = [0, 0, 0, 0, 0, 0])
 
 	return output
 
-### takes in states as the output of boat_simulation and plots the states###
+### takes in states as the output of boat_simulation and plots the states -- using force###
 def boat_sim_plot(X, show = True):
 	### plot ###
 	# u v r
@@ -424,7 +426,66 @@ def boat_sim_plot(X, show = True):
 	if show:
 		plt.show()
 
-#plots the tree structure -useless
+
+### takes in states as the output of boat_simulation and plots the states -- using water jets  ###
+def boat_sim_plot_wj(X, show = True):
+	### plot ###
+	# u v r
+	plt.figure()
+	plt.subplot(311)
+	plt.plot(X[-1,:], X[0,:])
+	plt.ylabel('u [m/s]')
+	plt.grid()
+
+	plt.subplot(312)
+	plt.plot(X[-1,:], X[1,:])
+	plt.ylabel('v [m/s]')
+	plt.grid()
+
+	plt.subplot(313)
+	plt.plot(X[-1,:], X[2,:])
+	plt.ylabel('r [m/s]')
+	plt.xlabel('Time [s]')
+	plt.grid()
+
+	### plot ###
+	# du dv dr
+	plt.figure()
+	plt.subplot(311)
+	plt.plot(X[-1,:], X[3,:])
+	plt.ylabel('du [m/s²]')
+	plt.grid()
+
+	plt.subplot(312)
+	plt.plot(X[-1,:], X[4,:])
+	plt.ylabel('dv [m/s²]')
+	plt.grid()
+
+	plt.subplot(313)
+	plt.plot(X[-1,:], X[5,:])
+	plt.ylabel('dr [m/s²]')
+	plt.xlabel('Time [s]')
+	plt.grid()
+
+	#inputs
+	plt.figure()
+	plt.subplot(211)
+	plt.plot(X[-1,:],X[6,:])
+	plt.ylabel('noze angle [rad]')
+	plt.grid()
+
+	plt.subplot(212)
+	plt.plot(X[-1,:],X[7,:])
+	plt.ylabel('Jet RPM [N]')
+	plt.xlabel('Time [s]')
+	plt.grid()
+
+
+	if show:
+		plt.show()
+
+
+#plots the tree structure -used in GPLEARN
 def show_result(est_gp, X, Y, t, plot_show = False):
 	graph = pydotplus.graphviz.graph_from_dot_data(est_gp._program.export_graphviz())
 	img = Image.open(io.BytesIO(graph.create_png()))

@@ -38,7 +38,7 @@ def jet_model(nu, jet_rpm, delta_nozzle):
 
 
 	#rpm2thrust
-	u = nu[1] * 1.94384 # knots 
+	u = nu[0] * 1.94384 # knots 
 	a0 = 6244.15
 	a1 = -178.46
 	a2 = 0.881043

@@ -29,7 +29,7 @@ from pytictoc import TicToc
 
 
 #time
-sim_time = [0, 200, 0.1]
+sim_time = [0, 100, 0.1]
 
 
 #--inputs--#
@@ -135,117 +135,119 @@ prev_noz_input = []
 prev_t = []
 
 def input_WJ(t, states):
-	# def jet_model(nu, jet_rpm, delta_nozzle):
-	# 	#constants
-	# 	lever_CGtowj_port = [-3.82, -0.475]
-	# 	lever_CGtowj_stb = [-3.82, 0.475]
-	# 	rpm_slew_rate = [2000, -2000]
-	# 	nozzle_slew_rate = [1.3464, -1.3464]
-	# 	rpm_min_max = [0, 2000]
+	def jet_model(nu, jet_rpm, delta_nozzle):
+		#constants
+		lever_CGtowj_port = [-3.82, -0.475]
+		lever_CGtowj_stb = [-3.82, 0.475]
+		rpm_slew_rate = [2000, -2000]
+		nozzle_slew_rate = [1.3464, -1.3464]
+		rpm_min_max = [0, 2000]
 
-	# 	if jet_rpm > rpm_min_max[1]:
-	# 		jet_rpm = rpm_min_max[1]
-	# 	elif jet_rpm < rpm_min_max[0]:
-	# 		jet_rpm = rpm_min_max[0]
+		if jet_rpm > rpm_min_max[1]:
+			jet_rpm = rpm_min_max[1]
+		elif jet_rpm < rpm_min_max[0]:
+			jet_rpm = rpm_min_max[0]
 
 		
-	# 	if 0:#prev_jet_input and prev_noz_input:
-	# 		#rate limiter rpm
-	# 		prev_jet_input.append(jet_rpm)
-	# 		jet_now = prev_input[-1]
-	# 		jet_prev = prev_input[-2]
+		if 0:#prev_jet_input and prev_noz_input:
+			#rate limiter rpm
+			prev_jet_input.append(jet_rpm)
+			jet_now = prev_input[-1]
+			jet_prev = prev_input[-2]
 
-	# 		rate = (jet_now - jet_prev)/(t_now-t_prev)
-	# 		if rate > rpm_slew_rate[0]:
-	# 			new_rpm = (t_now-t_prev)*rpm_slew_rate[0] + jet_prev
-	# 		elif rate < rpm_slew_rate[1]:
-	# 			new_rpm = (t_now-t_prev)*rpm_slew_rate[1] + jet_prev
+			rate = (jet_now - jet_prev)/(t_now-t_prev)
+			if rate > rpm_slew_rate[0]:
+				new_rpm = (t_now-t_prev)*rpm_slew_rate[0] + jet_prev
+			elif rate < rpm_slew_rate[1]:
+				new_rpm = (t_now-t_prev)*rpm_slew_rate[1] + jet_prev
 
-	# 		#rate limiter nozzle
-	# 		prev_noz_input.append(delta_nozzle)
-	# 		jet_now = prev_noz_input[-1]
-	# 		jet_prev = prev_noz_input[-2]
-	# 		rate = (noz_now - noz_prev)/(t_now-t_prev)
+			#rate limiter nozzle
+			prev_noz_input.append(delta_nozzle)
+			jet_now = prev_noz_input[-1]
+			jet_prev = prev_noz_input[-2]
+			rate = (noz_now - noz_prev)/(t_now-t_prev)
 
-	# 		if rate > nozzle_slew_rate[0]:
-	# 			new_rpm = (t_now-t_prev)*nozzle_slew_rate[0] + jet_prev
-	# 		elif rate < nozzle_slew_rate[1]:
-	# 			new_rpm = (t_now-t_prev)*nozzle_slew_rate[1] + jet_prev
-
-
+			if rate > nozzle_slew_rate[0]:
+				new_rpm = (t_now-t_prev)*nozzle_slew_rate[0] + jet_prev
+			elif rate < nozzle_slew_rate[1]:
+				new_rpm = (t_now-t_prev)*nozzle_slew_rate[1] + jet_prev
 
 
 
-	# 	#rpm2thrust
-	# 	speed = nu[0] * 1.94384 # knots 
-	# 	a0 = 6244.15
-	# 	a1 = -178.46
-	# 	a2 = 0.881043
-	# 	thrust_unscaled = a0 + a1*speed + a2*(speed**2)
-
-	# 	r0 = 85.8316
-	# 	r1 = -1.7935
-	# 	r2 = 0.00533
-	# 	rpm_scale = 1/4530*(r0 + r1*jet_rpm + r2 * (jet_rpm **2))
-
-	# 	thrust = rpm_scale * thrust_unscaled
 
 
-	# 	#waterjet port
-	# 	#force
-	# 	Fx = thrust*np.cos(delta_nozzle)
-	# 	Fy = thrust*np.sin(delta_nozzle)
-	# 	#moment
-	# 	Nz_port = (lever_CGtowj_port[0]*Fy)- (lever_CGtowj_port[1]*Fx)
-	# 	Nz_stb = (lever_CGtowj_stb[0]*Fy)- (lever_CGtowj_stb[1]*Fx)
+		#rpm2thrust
+		speed = nu[0] * 1.94384 # knots 
+		a0 = 6244.15
+		a1 = -178.46
+		a2 = 0.881043
+		thrust_unscaled = a0 + a1*speed + a2*(speed**2)
 
-	# 	#tau_b_port = [Fx, Fy, Nz_port]
-	# 	#tau_b_stb = [Fx, Fy, Nz_stb]
+		r0 = 85.8316
+		r1 = -1.7935
+		r2 = 0.00533
+		rpm_scale = 1/4530*(r0 + r1*jet_rpm + r2 * (jet_rpm **2))
 
-	# 	tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
-	# 	prev_jet_input.append(jet_rpm)
-	# 	prev_noz_input.append(delta_nozzle)
-	# 	return tau_b
+		thrust = rpm_scale * thrust_unscaled
 
+
+		#waterjet port
+		#force
+		Fx = thrust*np.cos(delta_nozzle)
+		Fy = thrust*np.sin(delta_nozzle)
+		#moment
+		Nz_port = (lever_CGtowj_port[0]*Fy)- (lever_CGtowj_port[1]*Fx)
+		Nz_stb = (lever_CGtowj_stb[0]*Fy)- (lever_CGtowj_stb[1]*Fx)
+
+		#tau_b_port = [Fx, Fy, Nz_port]
+		#tau_b_stb = [Fx, Fy, Nz_stb]
+
+		tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
+		prev_jet_input.append(jet_rpm)
+		prev_noz_input.append(delta_nozzle)
+		return tau_b
 
 	nu = states[3:6]
-	jet_rpm = 500 
-	if t < 18:
+
+	input_1 = True
+	input_2 = False
+	if input_1:
+		if t <= 20:
+			delta_nozzle = 0
+			jet_rpm = 500 
+		else:
+			jet_rpm =  500 * signal.square(t/3) +1000
+
+		if t > 50 and t < 55:
+			delta_nozzle = 0.1
+		elif t >= 55 and t < 65:
+			delta_nozzle = -0.1
+		else:
+			delta_nozzle = 0
+	
+	if input_2:
 		delta_nozzle = 0
-	elif t < 20:
-		delta_nozzle = 0.2
-		jet_rpm = 0
-	else:
-		delta_nozzle = 0
-		jet_rpm = 100
+		jet_rpm = 500 
+		
+
 	prev_t.append(t)
-	tau_b = my_lib.jet_model(nu, jet_rpm, delta_nozzle)
-
-
+	tau_b = jet_model(nu, jet_rpm, delta_nozzle)
 	return tau_b
 
 
 
 ### RUN SIM  ###
+X = my_lib.boat_simulation(steps_and_square, time = sim_time, init_cond = [0, 0, 0, 2, 0, 0])
 
-X = my_lib.boat_simulation(input_WJ, time = sim_time)
-#X_val = my_lib.boat_simulation(inp_step_series, time = sim_time)
+#X = my_lib.boat_simulation(input_WJ, time = sim_time)
+X_val = my_lib.boat_simulation(inp_step_series, time = sim_time)
 
-my_lib.boat_sim_plot(X, show = False)
+#my_lib.boat_sim_plot(X, show = True)
 
-inputs = np.zeros((len(prev_jet_input), 2))
-inputs[:,0] = prev_jet_input
-inputs[:,1] = prev_noz_input
-plt.figure()
-plt.plot(prev_t, inputs[:, 0])
-plt.plot(prev_t, inputs[:, 1])
-plt.grid()
-plt.legend(['jet_rpm', 'jet_nozzle'])
-plt.show()
-exit()
+#exit()
 
 ###  what eq to find.
-solve_for_du = False 
+solve_for_du = False
 solve_for_dv = False
 solve_for_dr = True
 if solve_for_du:
