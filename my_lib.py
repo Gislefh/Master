@@ -582,8 +582,8 @@ def jet_model(nu, jet_rpm, delta_nozzle):
 	#tau_b_stb = [Fx, Fy, Nz_stb]
 
 	tau_b =  [2*Fx, 2*Fy, Nz_port + Nz_stb]#np.add(tau_b_port, tau_b_stb)
-	prev_jet_input.append(jet_rpm)
-	prev_noz_input.append(delta_nozzle)
+	#prev_jet_input.append(jet_rpm)
+	#prev_noz_input.append(delta_nozzle)
 	return tau_b
 
 def input_WJ(t, states):
@@ -679,16 +679,168 @@ def input_WJ(t, states):
 
 
 
+####----- get acceleration data from txt file ------
+"""
+_IN_ 
+path to the rosbag
+
+
+_OUT_ 
+x, y, z -acceleration, and valid_time, the time stamp for the acceleration data
+
+
+"""
+def acc_data(path_to_bag):
+	# path = '/home/gislehalv/Master/Data/NavData/'
+	# file0 = 'NavigationSolutionData-0-0000.txt'
+	# file1 = 'NavigationSolutionData-0-0001.txt'
+	# file2 = 'NavigationSolutionData-0-0002.txt'
+	# file3 = 'NavigationSolutionData-0-0003.txt'
+	# file4 = 'NavigationSolutionData-0-0004.txt'
+	# file5 = 'NavigationSolutionData-0-0005.txt'
+	# file6 = 'NavigationSolutionData-0-0006.txt'
+	# file7 = 'NavigationSolutionData-0-0007.txt'
+	# file8 = 'NavigationSolutionData-0-0008.txt'
+	# file9 = 'NavigationSolutionData-0-0009.txt'
+	# file10 = 'NavigationSolutionData-0-0010.txt'
+	# file11 = 'NavigationSolutionData-0-0011.txt'
+	# file12 = 'NavigationSolutionData-0-0012.txt'
+	# file13 = 'NavigationSolutionData-0-0013.txt'
+	# file14 = 'NavigationSolutionData-0-0014.txt'
+	# file15 = 'NavigationSolutionData-0-0015.txt'
+	# file16 = 'NavigationSolutionData-0-0016.txt'
+
+	# file_list = [file0, file1, file2, file3, file4, file5, file6, file7, file8, file9, file10, file11, file12, file13, file14, file15, file16]
+
+	# xacc = []
+	# yacc = []
+	# zacc = []
+	# #lat = []
+	# #long_ = []
+	# valid_time = []
+	# #xvel = []
+	# for file in file_list:
+	# 	file_obj = open(path + file, 'r')
+
+	# 	i = 0
+	# 	for line in file_obj:
+
+	# 		if i > 40:
+	# 			#xvel.append(float(line.split(',')[6]))
+	# 			xacc.append(float(line.split(',')[15]))
+	# 			yacc.append(float(line.split(',')[16]))
+	# 			zacc.append(float(line.split(',')[17]))
+	# 			valid_time.append(float(line.split(',')[30]) *1000) # to Nsec
+	# 			#lat.append(float(line.split(',')[0]))
+	# 			#long_.append(float(line.split(',')[1]))
+
+	# 		i = i+1
+
+
+	###--test--
+	path = '/home/gislehalv/Master/Data/NavData/'
+	file0 = 'IMUInertialData-0-0000.txt'
+	file1 = 'IMUInertialData-0-0001.txt'
+	file2 = 'IMUInertialData-0-0002.txt'
+	file3 = 'IMUInertialData-0-0003.txt'
+	file4 = 'IMUInertialData-0-0004.txt'
+	file5 = 'IMUInertialData-0-0005.txt'
+	file6 = 'IMUInertialData-0-0006.txt'
+	file7 = 'IMUInertialData-0-0007.txt'
+	file8 = 'IMUInertialData-0-0008.txt'
+	file9 = 'IMUInertialData-0-0009.txt'
+	file10 = 'IMUInertialData-0-0010.txt'
+	file11 = 'IMUInertialData-0-0011.txt'
+	file12 = 'IMUInertialData-0-0012.txt'
+	file13 = 'IMUInertialData-0-0013.txt'
+	file14 = 'IMUInertialData-0-0014.txt'
+	file15 = 'IMUInertialData-0-0015.txt'
+	file16 = 'IMUInertialData-0-0016.txt'
+
+	file_list = [file0, file1, file2, file3, file4, file5, file6, file7, file8, file9, file10, file11, file12, file13, file14, file15, file16]
+	
+	xacc = []
+	yacc = []
+	zacc = []
+	#lat = []
+	#long_ = []
+	valid_time = []
+	#xvel = []
+	for file in file_list:
+		file_obj = open(path + file, 'r')
+
+		i = 0
+		for line in file_obj:
+
+			if i > 19:
+				#xvel.append(float(line.split(',')[6]))
+				xacc.append(float(line.split(',')[6]))
+				yacc.append(float(line.split(',')[7]))
+				zacc.append(float(line.split(',')[5]))
+				valid_time.append(float(line.split(',')[9]) *1000) # to Nsec
+				#lat.append(float(line.split(',')[0]))
+				#long_.append(float(line.split(',')[1]))
+
+			i = i+1
+
+	bag = rosbag.Bag(path_to_bag)
+	bagContents = bag.read_messages()
+
+	# #### -- jet data --
+	# jet_data  = [] 
+	# for i, subtopic, msg, t in enumerate(bag.read_messages('/usv/hamjet/status_high')):
+	# 	jet_data[2, i].append(float(str(t)))
+	
+	#### -- nav data --
+	# cnt_jet = 0
+	# for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
+	# 	cnt_jet += 1
+	# test_time = []
+	# jet_data  = np.zeros((4,cnt_jet))
+	# i = 0
+	nav_data = []
+	for subtopic, msg, t in bag.read_messages('/usv/navp_msg'):
+		nav_data.append(float(str(t)))
+		
+	#--set init time to zero
+	nav_data = np.divide(np.subtract(nav_data, valid_time[0]), 1e9) # to sec
+	#jet_data[2, :]  =  np.divide(np.subtract(jet_data[2,:], valid_time[0]), 1e9)# to sec
+	valid_time = np.divide(np.subtract(valid_time, valid_time[0]), 1e9) # to sec
+
+
+	# about 7.8 sec diff
+	nav_data = np.add(nav_data, 7.8)
+	
+	
+
+	start = np.argmin((valid_time - nav_data[0])**2)
+	stop = np.argmin((valid_time - nav_data[-1])**2)
+	
+	return xacc[start:stop], yacc[start:stop], zacc[start:stop], valid_time[start:stop]
+
+
+
+
+
+
+
+
 """  ------OPEN BAG-------- 
 Opens, filtes and interpolates a bag
 _IN_ 
 path:	path to bag file
 plot: 	whether or not to plot the contet, default = False 
+thr_bucket: cuts the outputs to only contain data with bucket > 95. check data to see if its necessary
+filter_cutoff:  what cutoff frq of the butterworth filter to use. shuld be in the range [0.01, 0.1]
+
 
 _OUT_ 
 X: 		[u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
 """
-def open_bag(path, plot = False):
+
+
+
+def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, return_raw_data = False):
 	bag = rosbag.Bag(path)
 	bagContents = bag.read_messages()
 	if not bagContents:
@@ -705,7 +857,22 @@ def open_bag(path, plot = False):
 	#print('TOPICS:')
 	#print(listOfTopics)
 
+	### --get acc data -- 
+	xacc, yacc, zacc, acc_time = acc_data(path)
+	
+	#set init time to zero
+	acc_time = np.subtract(acc_time, acc_time[0])
 
+
+	tmp = []
+	for i in range(len(acc_time) - 1):	
+		tmp.append(acc_time[i])
+	plt.figure()
+	plt.plot(tmp)
+	plt.plot(list(range(len(tmp))))
+	plt.grid()
+	plt.show()
+	exit()
 	#### -- jet data --
 	cnt_jet = 0
 	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
@@ -783,8 +950,8 @@ def open_bag(path, plot = False):
 
 			#butter
 			order = 2
-			cuttoff = 0.003
-			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+			cutoff = 0.003
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
 
 			#Forward -Backward filter
 			if FB_fil:
@@ -802,8 +969,8 @@ def open_bag(path, plot = False):
 		if FB_fil:
 			#butter
 			order = 2
-			cuttoff = 0.05
-			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+			cutoff = 0.05
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
 
 			#Forward -Backward filter
 			u_smooth = signal.filtfilt(b, a, nav_data[3, :]) 
@@ -830,8 +997,8 @@ def open_bag(path, plot = False):
 			r_int = np.interp(interp_arr, nav_data[6, :],nav_data[5, :])
 
 			order = 2
-			cuttoff = 0.3
-			b, a = signal.butter(order, cuttoff, btype='low', analog=False, output='ba')
+			cutoff = filter_cutoff
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
 
 			#Forward -Backward filter
 			u_smooth = signal.filtfilt(b, a, u_int) 
@@ -869,16 +1036,19 @@ def open_bag(path, plot = False):
 		return u_smooth, v_smooth, r_smooth
 	u_smooth, v_smooth, r_smooth, interp_arr = filter(nav_data)
 
+	r_smooth = r_smooth *(np.pi/180) #from deg/s to rad/s
+
+
 
 	#### 		-- Integrate --
-	def integrate(nav_data, u_smooth, v_smooth, r_smooth):
-		du = np.diff(nav_data[3, :],n = 1)
-		dv = np.diff(nav_data[4, :],n = 1)
-		dr = np.diff(nav_data[5, :],n = 1)
+	def deriv(nav_data, u_smooth, v_smooth, r_smooth):
+		du = np.diff(nav_data[3, :],n = 1) / 0.05
+		dv = np.diff(nav_data[4, :],n = 1)/ 0.05
+		dr = np.diff(nav_data[5, :],n = 1)/ 0.05
 
-		du_smo = np.diff(u_smooth ,n = 1)
-		dv_smo = np.diff(v_smooth ,n = 1)
-		dr_smo = np.diff(r_smooth ,n = 1)
+		du_smo = np.diff(u_smooth ,n = 1)/ 0.05
+		dv_smo = np.diff(v_smooth ,n = 1)/ 0.05
+		dr_smo = np.diff(r_smooth ,n = 1)/ 0.05
 
 		#add the last signal twice 
 		du = np.concatenate((du,[du[-1]]))
@@ -890,7 +1060,7 @@ def open_bag(path, plot = False):
 		dr_smo = np.concatenate((dr_smo,[dr_smo[-1]]))
 
 		return du, dv, dr, du_smo, dv_smo, dr_smo
-	du, dv, dr, du_smo, dv_smo, dr_smo =  integrate(nav_data, u_smooth, v_smooth, r_smooth)
+	du, dv, dr, du_smo, dv_smo, dr_smo =  deriv(nav_data, u_smooth, v_smooth, r_smooth)
 
 
 	def interpolate(jet_data, interp_arr):
@@ -900,9 +1070,129 @@ def open_bag(path, plot = False):
 		return jet_rpm, nozzle_angle, bucket
 	jet_rpm, nozzle_angle, bucket = interpolate(jet_data, interp_arr)
 
+	nozzle_angle = nozzle_angle *(27/100) # from [-100, 100] to [-27, 27] deg
+
+
+	def interpolate_loaded_acc_data(x_acc, y_acc, z_acc, acc_time_, interp_arr_):
+		Xacc = np.interp(interp_arr_, acc_time_,x_acc)
+		Yacc = np.interp(interp_arr_, acc_time_,y_acc)
+		Zacc = np.interp(interp_arr_, acc_time_,z_acc)
+		return Xacc, Yacc, Zacc
+
+	def filter_loaded_acc_data(du, dv, dr):
+		order = 2
+		cutoff = 0.1#filter_cutoff
+		b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
+
+		#Forward -Backward filter
+		u_smooth = signal.filtfilt(b, a, du) 
+		v_smooth = signal.filtfilt(b, a, dv) 
+		r_smooth = signal.filtfilt(b, a, dr) 
+		return u_smooth, v_smooth, r_smooth
+
+	du_load, dv_load, dr_load = interpolate_loaded_acc_data(xacc, yacc, zacc, acc_time, interp_arr)
+	du_load_smooth, dv_load_smooth, dr_load_smooth = filter_loaded_acc_data(du_load, dv_load, dr_load)
+
+
+	plt.figure()
+	plt.plot(interp_arr, du_smo)
+	plt.plot(interp_arr, du_load ,linewidth = 0.5)
+	plt.plot(interp_arr, du_load_smooth)
+	plt.plot(interp_arr, u_smooth)
+	plt.legend(['derived acc', 'loaded acc', 'after butter'])
+	plt.ylabel('du')
+	plt.grid()	
+
+	plt.figure()
+	plt.plot(interp_arr, dv_smo)
+	plt.plot(interp_arr, dv_load,linewidth = 0.5)
+	plt.plot(interp_arr,dv_load_smooth)
+	plt.plot(interp_arr, v_smooth)
+	plt.legend(['derived acc', 'loaded acc', 'after butter', 'v'])
+	plt.ylabel('dv')
+	plt.grid()
+
+	plt.figure()
+	plt.plot(interp_arr, dr_smo)
+	plt.plot(interp_arr, dr_load,linewidth = 0.5)
+	plt.plot(interp_arr,dr_load_smooth)
+	plt.plot(interp_arr, r_smooth)
+	plt.legend(['derived acc', 'loaded acc', 'after butter', 'r'])
+	plt.grid()
+	plt.ylabel('dr')
+	plt.show()
+	exit()
 	#preeprossesed matrix of variables.
 	X = [u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
 	X = np.array(X)
+
+
+
+
+		### --- test --
+	#move the derivative into the future by the move function
+	# remove the beginning of the data
+	#move_amount * steps = time [s] , move_amount = 10 => 0.5s 
+	#nope!
+	if 0:
+		def move(X, move_amount):
+			padd = [0] * move_amount 
+			#print(np.shape(padd))
+			#print(np.shape(X[3, :]))
+			
+
+			X[3] = np.concatenate((padd, X[3, :-move_amount]))
+			X[4] = np.concatenate((padd, X[4, :-move_amount]))
+			X[5] = np.concatenate((padd, X[5, :-move_amount]))
+			#exit()
+			X_new = X[:,move_amount:]
+			return X_new
+
+		X = move(X,7)
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[0])
+		plt.ylabel('Jet [RPM]')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[3])
+		plt.plot(interp_arr, u_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('u [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],du)	
+		plt.plot(interp_arr,du_smo)
+		plt.plot(X[-1], X[3])
+		plt.legend(['raw', 'smooth','moved'])
+		plt.ylabel('du smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[1])
+		plt.ylabel('nozzle angle')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[4])
+		plt.plot(interp_arr, v_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('v [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],dv)	
+		plt.plot(interp_arr,dv_smo)
+		plt.plot(X[-1], X[4])
+		plt.legend(['raw', 'smooth', 'moved'])
+		plt.ylabel('dv smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+		plt.show()
+		exit()
+
 
 	# a test to check if the bucket is fully open in all the data. if not - start where it becomes > 95 and end if it <95
 	def bucket_fully_open(X):
@@ -921,7 +1211,9 @@ def open_bag(path, plot = False):
 
 		X = X[:,start:stop]
 		return X
-	X = bucket_fully_open(X)
+	
+	if thr_bucket: #use the  bucket_fully_open function 
+		X = bucket_fully_open(X)
 
 	### ---Plots----
 	if plot:
@@ -981,10 +1273,45 @@ def open_bag(path, plot = False):
 		plt.plot(nav_data[0,0],nav_data[1,0],'rx')
 		plt.title('XY-plot, starts at the red cross')
 
-		# plt.figure()
-		# plt.plot(nav_data[6,:],nav_data[2, :])
-		# plt.title('heading angle')
-		# plt.grid()
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[0])
+		plt.ylabel('Jet [RPM]')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[3])
+		plt.plot(interp_arr, u_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('u [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],du)	
+		plt.plot(interp_arr,du_smo)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('du smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[1])
+		plt.ylabel('nozzle angle')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[4])
+		plt.plot(interp_arr, v_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('v [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],dv)	
+		plt.plot(interp_arr,dv_smo)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('dv smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+
 		plt.show()
 
 	### --- save -- does not work any more
@@ -1009,5 +1336,21 @@ def open_bag(path, plot = False):
 		save_name = save_path + name + '.csv'
 		np.savetxt(save_name, data, delimiter = ',')
 
+	if return_raw_data:
+		#interpolate to jet time
+		u_jet_t = np.interp(jet_data[2, :], nav_data[6, i], nav_data[3, :])
+		v_jet_t = np.interp(jet_data[2, :], nav_data[6, i], nav_data[4, :])
+		r_jet_t = np.interp(jet_data[2, :], nav_data[6, i], nav_data[5, :])
+		du_jet_t = np.interp(jet_data[2, :], nav_data[6, i], du)
+		dv_jet_t = np.interp(jet_data[2, :], nav_data[6, i], dv)
+		dr_jet_t = np.interp(jet_data[2, :], nav_data[6, i], dr)
+
+		X = [u_jet_t, v_jet_t, r_jet_t, du_jet_t, dv_jet_t, dr_jet_t, jet_rpm, nozzle_angle, bucket, jet_data[2, :]]
+		return X
+
 	return X
+
+
+
+
 

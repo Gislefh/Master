@@ -1,6 +1,6 @@
 """
 Testing out the new LS alg for the boat sim
-Also trying to include OLS
+Also trying to include OLS - nope
 """
 
 import operator
