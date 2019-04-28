@@ -1,7 +1,7 @@
 """
 Genetic Programming on real data. 
 """
-
+import mpmath
 import operator
 import math
 import random
@@ -32,84 +32,81 @@ bag_3 = 'hal_control_2018-12-11-12-13-58_0' #
 bag_4 = 'hal_control_2018-12-11-12-19-11_0'
 
 
-
-
-
-# ####test
-# new_func_str = ['a', 'b', 'c', 'd', 'e']
-# print(new_func_str)
-# for h in range(int(np.ceil(np.log2(len(new_func_str))))): #
-# 	tmp = []
-# 	i = 0
-# 	while i < len(new_func_str):
-# 		if i +1 < len(new_func_str):
-# 			tmp.append('add(' + new_func_str[i] + ',' + new_func_str[i+1] + ')')
-# 			i = i+2
-# 		else:
-# 			tmp.append(new_func_str[i])
-# 			i = i+1
-# 		#print(tmp)
-# 	new_func_str = tmp
-# 	print(new_func_str)
-			
-# exit()
-
-
-##
-
 # bag path
 path = '/home/gislehalv/Master/Data/'
 
 
-bagFile_path_train = path + bag_3 + '.bag'
+bagFile_path_train = path + bag_1 + '.bag'
 
 bagFile_path_val = path + bag_2 + '.bag'
 bagFile_path_test = path + bag_3 + '.bag'
 
 
-# get data
-X = my_lib.open_bag(bagFile_path_train, plot=False, thr_bucket = False, filter_cutoff = 0.1)
+##get data
+# X = my_lib.open_bag(bagFile_path_train, plot=True, thr_bucket = False, filter_cutoff = 0.025)
+# X_val = my_lib.open_bag(bagFile_path_val, plot=False, thr_bucket = False, filter_cutoff = 0.1)
+# X_test = my_lib.open_bag(bagFile_path_test, plot=False, thr_bucket = False, filter_cutoff = 0.1)
+# np.save('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025' , X)
 
 
-X_val = my_lib.open_bag(bagFile_path_val, plot=False, thr_bucket = False, filter_cutoff = 0.1)
-X_test = my_lib.open_bag(bagFile_path_test, plot=False, thr_bucket = False, filter_cutoff = 0.1)
+# X = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
+# X_val = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
+# #X_test = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
 
+# split = int(np.shape(X)[1]/2)
+# X_test = X_val[:, :split]
+# X_val = X_val[:, split:]
 
 """
 X = [u, v, r, du, dv, dr, jet_rpm, nozzle_angle, bucket, interp_arr], interp_arr= time. 
 Notes:
 - nozzle angle is not the angle but in the range[-100, 100], but the ral angle is in the range[-27, 27] deg
 - interp_arr is the time variable 
-- bucket shuld be > 95 for all data
 """
+######### all data
+
+X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
+X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
+X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
+X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025'+'.npy')
 
 
-###--scaling
-#scaling to zero mean
+#melt all the data together
+X = np.concatenate((X1,X2,X3),axis = 1)
 
-scaling = False
-if scaling:
-	X_orig = X.copy()
-	X_val_orig = X_val.copy()
-	for i in range(9):
-		X[i] = X[i]  / np.std(X[i])
-		X_val[i] = X_val[i] /np.std(X_val[i])
+X[-3][X[-3] > 27] = 27 #remove error in the data
+X[-3][X[-3] < -27] = -27
 
 
-#test for du
-test_du = False
-if test_du:
-	x3_std = np.std(X[3])
-	x3_val_std = np.std(X_val[3])
-	print(x3_std)
-	X[3] = X[3] / np.std(X[3])
-	X_val[3] = X_val[3] / np.std(X_val[3])
+#remove data with bucket < 95
+index = []
+for i in range(np.shape(X)[1]):
+	if np.shape(X)[1] > i:
+		if X[-2, i] < 95:
+			index.append(i)
+X = np.delete(X, index, 1)
+
+# divide into val and train sets
+X_val = np.concatenate((X[:,11511:18500], X[:,27912:32693], X[:,56531:60714], X[:,70475:74193]),axis = 1)
+index = list(range(11511,18500)) + list(range(27912,32693)) +list(range(56531,60714)) + list(range(70475,74193))
+X = np.delete(X, index, 1)
 
 
-## what variable to use as y
-solve_for_du = True 
+
+
+time_step_size = X_val[-1,1] - X_val[-1,0]
+
+X_val[-1] = np.arange(0, len(X_val[-1]) * time_step_size, time_step_size)
+X[-1] = np.arange(0, len(X[-1]) * time_step_size, time_step_size)
+
+X_test = X4
+########
+
+
+## what equation to find
+solve_for_du = False
 solve_for_dv = False
-solve_for_dr = False
+solve_for_dr = True
 if solve_for_du:
 	y = X[3]
 	y_val = X_val[3]
@@ -124,12 +121,11 @@ if solve_for_dr:
 	y_test = X_test[5]
 
 
-
-
 pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(operator.abs, 1)
+#pset.addPrimitive(math.tanh, 1)
 pset.addPrimitive(np.sin, 1)
 pset.addPrimitive(np.cos, 1)
 #pset.addPrimitive(square, 1)
@@ -347,12 +343,13 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 		'add3': lambda x, y, z: x+y+z,
 		'sub': lambda x, y : x - y,
 		'protectedDiv': lambda x, y: x / y,
+		'tanh': lambda x: np.tanh(x),
 		'neg': lambda x: -x,
 		'sin': lambda x: sin(x),
 		'cos': lambda x: cos(x),
 		'abs': lambda x: np.abs(x)#x if x >= 0 else -x
 	}
-	expand_ind = False
+	expand_ind = True
 	if expand_ind:
 		def expand_functions(exp_str):
 			u, v, r, delta_t, delta_n = symbols('u v r delta_t delta_n')
@@ -474,18 +471,22 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 toolbox.register("evaluate", eval_fit_new_w_constant, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False)
 toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
-toolbox.register("expr_mut", gp.genFull, min_=3, max_=4)  #<-------- gives faster results with 2,4 than 0,2 'perhaps'
+toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)  #<-------- gives faster results with 2,4 than 0,2 
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=10))
-toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=10))
+toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=5))
+toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=5))
 
 
 
-pop_size = 10000
+pop_size = 5000
 mate_prob = 0.5
 mut_prob = 0.3
 generations = 30
-ols_thr = 0.1
+
+#ols_thr = 0.1
+
+#no change in val fitness init
+no_ch = 0
 
 
 pop = toolbox.population(n=pop_size)
@@ -508,23 +509,22 @@ for gen in range(0,generations):
 	pop = algorithms.varOr(pop, toolbox, lambda_, mate_prob, mut_prob)
 	invalid_ind = [ind for ind in pop if not ind.fitness.valid]
 
+
+	#--- OLS --- 
 	# for i, individual in enumerate(invalid_ind):
 	# 	invalid_ind[i] = OLS(individual, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, threshold = ols_thr)
 
 
-	#print(len(invalid_ind))
 	fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)	
 	for ind, fit in zip(invalid_ind, fitnesses):
 		ind.fitness.values = fit
 	hof.update(pop)
 
 
-	record = stats.compile(pop)
-	logbook.record(gen=gen, evals=len(invalid_ind), **record)
+	#record = stats.compile(pop)
+	#logbook.record(gen=gen, evals=len(invalid_ind), **record)
 	pop = toolbox.select(pop, k=len(pop))
 
-		
-	
 	
 	train_score = eval_fit_new_w_constant(hof[0], u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False)[0]
 	func = eval_fit_new_w_constant(hof[0], u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False, return_function = True)
@@ -541,30 +541,18 @@ for gen in range(0,generations):
 	if  val_score < best_val:
 		best_val_ind = hof[0]
 		best_val = val_score
-		print('Saved as new best')
-	continue
-	#test result on validation set
-	if record['min'] < 1e-5:
-		mse = eval_fit_new_w_constant(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-4,:], delta_n = X_val[-3,:], y = y_val, return_str = False)
-		print('mse for validation: ', mse)
-		if mse[0] < 1e-5:
-			#print clean eq, and lisp eq
-			print('Final result:',eval_fit_new_w_constant(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-4,:], delta_n = X_val[-3,:], y = y_val, return_str = True))
-			print(hof[0])
+		print('---------Saved as new best----------')
+		print('The new eq:', eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = True))
+		no_ch = 0
+	else:
+		no_ch = no_ch + 1
 
-			#plot
-			eval_fit_new_w_constant(hof[0], u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-2,:], delta_n = X_val[-4,:], y = y_val, plot_result = True)
-			plt.title('Validation set')
-
-			eval_fit_new_w_constant(hof[0], u = X[0], v = X[1], r = X[2], delta_t = X[-2,:], delta_n = X[-4,:], y = y, plot_result = True)
-			plt.title('Training set')
-			plt.show()
-			exit()
+	if no_ch >= 10 and gen > 10: #validation has not gotten better in 5 generations -> terminate
+		break
 
 
 
-
-print('Reached the max number of generations')
+print('Finished')
 print('Best equation:',eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = True))
 
 
@@ -592,36 +580,6 @@ plt.xlabel('Time [s]')
 plt.ylabel('du')
 
 
-
-#rescale back 
-if scaling:
-	X = X_orig.copy()
-	X_val = X_val_orig.copy()
-
-	eval_fit_new_w_constant(best_val_ind, u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-4,:], delta_n = X_val[-3,:], y = y_val, plot_result = True)
-	plt.title('Validation set, rescaled')
-
-	eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-2,:], delta_n = X[-4,:], y = y, plot_result = True)
-	plt.title('Training set, rescaled')
-
-#test for du
-if test_du:
-	y = y * x3_std
-	y_val = y_val * x3_val_std
-
-
-	eval_fit_new_w_constant(best_val_ind, u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-4,:], delta_n = X_val[-3,:], y = y_val, plot_result = True)
-	plt.title('Validation set, rescaled')
-
-	eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-2,:], delta_n = X[-4,:], y = y, plot_result = True)
-	plt.title('Training set, rescaled')
-
-	print('Best equation rescaled:',eval_fit_new_w_constant(best_val_ind, u = X_val[0], v = X_val[1], r = X_val[2], delta_t = X_val[-4,:], delta_n = X_val[-3,:], y = y_val, return_str = True))
-
-
-
-
-
 #history
 plt.figure()
 plt.semilogy(val_acc)
@@ -633,80 +591,3 @@ plt.legend(['Validation acc', 'Training acc'])
 plt.show()
 
 
-""" div
-
-
-			#new_ind = gp.PrimitiveTree.from_string(str(exp_str),pset)
-			
-			# #exp_str = 'a*b*c**2*d**3*sin(a*b)'
-			# parts = str(exp_str).split('+')
-			
-			# for part in parts:
-			# 	part2 = part.split('*')
-			# 	new_list = []
-			# 	cnt = 0
-			# 	print(part2)
-				
-			# 	for i, var in enumerate(part2):
-
-			# 		print(len(var))
-					
-
-			# 		if cnt != 0:
-			# 			cnt = cnt - 1
-			# 			continue
-
-			# 		if i+2 < len(part2):
-			# 			if part2[i+1] == '':
-			# 				cnt = 2 
-			# 				for i in range(int(part2[i+2])):
-			# 					new_list.append(var)
-			# 			else:
-			# 				new_list.append(var)
-
-			# 		# elif i+1 < len(part2):
-			# 		# 	if part2[i+1] != '':
-			# 		# 		new_list.append(var)
-			# 		if i+1 == len(part2):
-			# 			new_list.append(var)
-
-					
-
-			# 	print(new_list)
-			# 	exit()
-
-				
-
-
-
-			# #recreate DEAP string
-			
-			# split = str(exp_str).split('+')
-			# print(split)
-			# for part2 in split:
-			# 	tot = '' 
-			# 	var_list = part2.split('*')
-			# 	cnt = 0
-			# 	for i, var in enumerate(var_list):
-			# 		if cnt != 0:
-			# 			cnt = cnt - 1
-			# 			continue
-
-			# 		if var == '':
-			# 			cnt = 1
-			# 			tot = tot + var_list[i-1] + ')'
-
-			# 		elif i+1 == len(var_list):
-			# 			tot = tot  +var+ ')'
-
-			# 		else:
-			# 			tot = tot + 'mul(' + var + ','
-					
-			# 	tot = tot + ')'* (tot.count('(') - tot.count(')'))
-
-
-			# 	print(tot)
-				
-
-
-"""

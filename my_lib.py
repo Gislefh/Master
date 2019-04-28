@@ -691,50 +691,50 @@ x, y, z -acceleration, and valid_time, the time stamp for the acceleration data
 
 """
 def acc_data(path_to_bag):
-	# path = '/home/gislehalv/Master/Data/NavData/'
-	# file0 = 'NavigationSolutionData-0-0000.txt'
-	# file1 = 'NavigationSolutionData-0-0001.txt'
-	# file2 = 'NavigationSolutionData-0-0002.txt'
-	# file3 = 'NavigationSolutionData-0-0003.txt'
-	# file4 = 'NavigationSolutionData-0-0004.txt'
-	# file5 = 'NavigationSolutionData-0-0005.txt'
-	# file6 = 'NavigationSolutionData-0-0006.txt'
-	# file7 = 'NavigationSolutionData-0-0007.txt'
-	# file8 = 'NavigationSolutionData-0-0008.txt'
-	# file9 = 'NavigationSolutionData-0-0009.txt'
-	# file10 = 'NavigationSolutionData-0-0010.txt'
-	# file11 = 'NavigationSolutionData-0-0011.txt'
-	# file12 = 'NavigationSolutionData-0-0012.txt'
-	# file13 = 'NavigationSolutionData-0-0013.txt'
-	# file14 = 'NavigationSolutionData-0-0014.txt'
-	# file15 = 'NavigationSolutionData-0-0015.txt'
-	# file16 = 'NavigationSolutionData-0-0016.txt'
+	path = '/home/gislehalv/Master/Data/NavData/'
+	file0 = 'NavigationSolutionData-0-0000.txt'
+	file1 = 'NavigationSolutionData-0-0001.txt'
+	file2 = 'NavigationSolutionData-0-0002.txt'
+	file3 = 'NavigationSolutionData-0-0003.txt'
+	file4 = 'NavigationSolutionData-0-0004.txt'
+	file5 = 'NavigationSolutionData-0-0005.txt'
+	file6 = 'NavigationSolutionData-0-0006.txt'
+	file7 = 'NavigationSolutionData-0-0007.txt'
+	file8 = 'NavigationSolutionData-0-0008.txt'
+	file9 = 'NavigationSolutionData-0-0009.txt'
+	file10 = 'NavigationSolutionData-0-0010.txt'
+	file11 = 'NavigationSolutionData-0-0011.txt'
+	file12 = 'NavigationSolutionData-0-0012.txt'
+	file13 = 'NavigationSolutionData-0-0013.txt'
+	file14 = 'NavigationSolutionData-0-0014.txt'
+	file15 = 'NavigationSolutionData-0-0015.txt'
+	file16 = 'NavigationSolutionData-0-0016.txt'
 
-	# file_list = [file0, file1, file2, file3, file4, file5, file6, file7, file8, file9, file10, file11, file12, file13, file14, file15, file16]
+	file_list = [file0, file1, file2, file3, file4, file5, file6, file7, file8, file9, file10, file11, file12, file13, file14, file15, file16]
 
-	# xacc = []
-	# yacc = []
-	# zacc = []
-	# #lat = []
-	# #long_ = []
-	# valid_time = []
-	# #xvel = []
-	# for file in file_list:
-	# 	file_obj = open(path + file, 'r')
+	xvel = []
+	yvel = []
+	zvel = []
+	#lat = []
+	#long_ = []
+	valid_time_vel = []
+	#xvel = []
+	for file in file_list:
+		file_obj = open(path + file, 'r')
 
-	# 	i = 0
-	# 	for line in file_obj:
+		i = 0
+		for line in file_obj:
 
-	# 		if i > 40:
-	# 			#xvel.append(float(line.split(',')[6]))
-	# 			xacc.append(float(line.split(',')[15]))
-	# 			yacc.append(float(line.split(',')[16]))
-	# 			zacc.append(float(line.split(',')[17]))
-	# 			valid_time.append(float(line.split(',')[30]) *1000) # to Nsec
-	# 			#lat.append(float(line.split(',')[0]))
-	# 			#long_.append(float(line.split(',')[1]))
+			if i > 40:
+				#xvel.append(float(line.split(',')[6]))
+				xvel.append(float(line.split(',')[6]))
+				yvel.append(float(line.split(',')[7]))
+				zvel.append(float(line.split(',')[14]))
+				valid_time_vel.append(float(line.split(',')[30]) *1000) # to Nsec
+				#lat.append(float(line.split(',')[0]))
+				#long_.append(float(line.split(',')[1]))
 
-	# 		i = i+1
+			i = i+1
 
 
 	###--test--
@@ -806,17 +806,31 @@ def acc_data(path_to_bag):
 	nav_data = np.divide(np.subtract(nav_data, valid_time[0]), 1e9) # to sec
 	#jet_data[2, :]  =  np.divide(np.subtract(jet_data[2,:], valid_time[0]), 1e9)# to sec
 	valid_time = np.divide(np.subtract(valid_time, valid_time[0]), 1e9) # to sec
+	valid_time_vel = np.divide(np.subtract(valid_time_vel, valid_time_vel[0]), 1e9)
 
+
+	start_vel = np.argmin((valid_time_vel - nav_data[0])**2)
+	stop_vel = np.argmin((valid_time_vel - nav_data[-1])**2)
 
 	# about 7.8 sec diff
-	nav_data = np.add(nav_data, 7.8)
+	#nav_data = np.add(nav_data, 7.8)
 	
 	
 
 	start = np.argmin((valid_time - nav_data[0])**2)
 	stop = np.argmin((valid_time - nav_data[-1])**2)
+
+
+
+
+
+
+	#test if it's a good match 
+	if np.abs(valid_time[start] - nav_data[0]) > 0.5 or np.abs(valid_time[stop] - nav_data[-1]) > 0.5:
+		print('the arrays do not match')
+		exit()
 	
-	return xacc[start:stop], yacc[start:stop], zacc[start:stop], valid_time[start:stop]
+	return xacc[start:stop], yacc[start:stop], zacc[start:stop], valid_time[start:stop], xvel[start_vel:stop_vel], yvel[start_vel:stop_vel], zvel[start_vel:stop_vel], valid_time_vel[start_vel:stop_vel]
 
 
 
@@ -849,30 +863,7 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 
 	#save?
 	save = False
-
-	#listOfTopics = []
-	#for topic, msg, t in bagContents:
-	#	if topic not in listOfTopics:
-	#		listOfTopics.append(topic)
-	#print('TOPICS:')
-	#print(listOfTopics)
-
-	### --get acc data -- 
-	xacc, yacc, zacc, acc_time = acc_data(path)
 	
-	#set init time to zero
-	acc_time = np.subtract(acc_time, acc_time[0])
-
-
-	tmp = []
-	for i in range(len(acc_time) - 1):	
-		tmp.append(acc_time[i])
-	plt.figure()
-	plt.plot(tmp)
-	plt.plot(list(range(len(tmp))))
-	plt.grid()
-	plt.show()
-	exit()
 	#### -- jet data --
 	cnt_jet = 0
 	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
@@ -916,7 +907,7 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 
 	#set initial time to zero
 	nav_data[6, :] = nav_data[6, :] - nav_data[6, 0] 
-
+	nav_data[5, :] = nav_data[5, :] * (np.pi/180) #from deg/s to rad/s
 	####		 --Fiter--
 	#set the sample time to 0.05
 	def filter(nav_data):
@@ -1036,9 +1027,6 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 		return u_smooth, v_smooth, r_smooth
 	u_smooth, v_smooth, r_smooth, interp_arr = filter(nav_data)
 
-	r_smooth = r_smooth *(np.pi/180) #from deg/s to rad/s
-
-
 
 	#### 		-- Integrate --
 	def deriv(nav_data, u_smooth, v_smooth, r_smooth):
@@ -1062,6 +1050,7 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 		return du, dv, dr, du_smo, dv_smo, dr_smo
 	du, dv, dr, du_smo, dv_smo, dr_smo =  deriv(nav_data, u_smooth, v_smooth, r_smooth)
 
+	jet_data[1, :] = np.multiply(jet_data[1, :],(27/100)) # from [-100, 100] to [-27, 27] deg
 
 	def interpolate(jet_data, interp_arr):
 		jet_rpm = 		np.interp(interp_arr, jet_data[2, :],jet_data[0, :])
@@ -1070,128 +1059,15 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 		return jet_rpm, nozzle_angle, bucket
 	jet_rpm, nozzle_angle, bucket = interpolate(jet_data, interp_arr)
 
-	nozzle_angle = nozzle_angle *(27/100) # from [-100, 100] to [-27, 27] deg
 
 
-	def interpolate_loaded_acc_data(x_acc, y_acc, z_acc, acc_time_, interp_arr_):
-		Xacc = np.interp(interp_arr_, acc_time_,x_acc)
-		Yacc = np.interp(interp_arr_, acc_time_,y_acc)
-		Zacc = np.interp(interp_arr_, acc_time_,z_acc)
-		return Xacc, Yacc, Zacc
-
-	def filter_loaded_acc_data(du, dv, dr):
-		order = 2
-		cutoff = 0.1#filter_cutoff
-		b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
-
-		#Forward -Backward filter
-		u_smooth = signal.filtfilt(b, a, du) 
-		v_smooth = signal.filtfilt(b, a, dv) 
-		r_smooth = signal.filtfilt(b, a, dr) 
-		return u_smooth, v_smooth, r_smooth
-
-	du_load, dv_load, dr_load = interpolate_loaded_acc_data(xacc, yacc, zacc, acc_time, interp_arr)
-	du_load_smooth, dv_load_smooth, dr_load_smooth = filter_loaded_acc_data(du_load, dv_load, dr_load)
+	
 
 
-	plt.figure()
-	plt.plot(interp_arr, du_smo)
-	plt.plot(interp_arr, du_load ,linewidth = 0.5)
-	plt.plot(interp_arr, du_load_smooth)
-	plt.plot(interp_arr, u_smooth)
-	plt.legend(['derived acc', 'loaded acc', 'after butter'])
-	plt.ylabel('du')
-	plt.grid()	
-
-	plt.figure()
-	plt.plot(interp_arr, dv_smo)
-	plt.plot(interp_arr, dv_load,linewidth = 0.5)
-	plt.plot(interp_arr,dv_load_smooth)
-	plt.plot(interp_arr, v_smooth)
-	plt.legend(['derived acc', 'loaded acc', 'after butter', 'v'])
-	plt.ylabel('dv')
-	plt.grid()
-
-	plt.figure()
-	plt.plot(interp_arr, dr_smo)
-	plt.plot(interp_arr, dr_load,linewidth = 0.5)
-	plt.plot(interp_arr,dr_load_smooth)
-	plt.plot(interp_arr, r_smooth)
-	plt.legend(['derived acc', 'loaded acc', 'after butter', 'r'])
-	plt.grid()
-	plt.ylabel('dr')
-	plt.show()
-	exit()
 	#preeprossesed matrix of variables.
 	X = [u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
 	X = np.array(X)
 
-
-
-
-		### --- test --
-	#move the derivative into the future by the move function
-	# remove the beginning of the data
-	#move_amount * steps = time [s] , move_amount = 10 => 0.5s 
-	#nope!
-	if 0:
-		def move(X, move_amount):
-			padd = [0] * move_amount 
-			#print(np.shape(padd))
-			#print(np.shape(X[3, :]))
-			
-
-			X[3] = np.concatenate((padd, X[3, :-move_amount]))
-			X[4] = np.concatenate((padd, X[4, :-move_amount]))
-			X[5] = np.concatenate((padd, X[5, :-move_amount]))
-			#exit()
-			X_new = X[:,move_amount:]
-			return X_new
-
-		X = move(X,7)
-
-		plt.figure()
-		plt.subplot(311)
-		plt.plot(jet_data[2],jet_data[0])
-		plt.ylabel('Jet [RPM]')
-		plt.grid()
-		plt.subplot(312)
-		plt.plot(nav_data[6],nav_data[3])
-		plt.plot(interp_arr, u_smooth)
-		plt.legend(['raw', 'smooth'])
-		plt.ylabel('u [m/s]')
-		plt.grid()
-		plt.subplot(313)
-		plt.plot(nav_data[6],du)	
-		plt.plot(interp_arr,du_smo)
-		plt.plot(X[-1], X[3])
-		plt.legend(['raw', 'smooth','moved'])
-		plt.ylabel('du smooth [m/s^2]')
-		plt.xlabel('Time [s]')
-		plt.grid()
-
-
-		plt.figure()
-		plt.subplot(311)
-		plt.plot(jet_data[2],jet_data[1])
-		plt.ylabel('nozzle angle')
-		plt.grid()
-		plt.subplot(312)
-		plt.plot(nav_data[6],nav_data[4])
-		plt.plot(interp_arr, v_smooth)
-		plt.legend(['raw', 'smooth'])
-		plt.ylabel('v [m/s]')
-		plt.grid()
-		plt.subplot(313)
-		plt.plot(nav_data[6],dv)	
-		plt.plot(interp_arr,dv_smo)
-		plt.plot(X[-1], X[4])
-		plt.legend(['raw', 'smooth', 'moved'])
-		plt.ylabel('dv smooth [m/s^2]')
-		plt.xlabel('Time [s]')
-		plt.grid()
-		plt.show()
-		exit()
 
 
 	# a test to check if the bucket is fully open in all the data. if not - start where it becomes > 95 and end if it <95
@@ -1350,6 +1226,324 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 
 	return X
 
+
+
+
+
+def open_bag_w_yaw(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, return_raw_data = False):
+	bag = rosbag.Bag(path)
+	bagContents = bag.read_messages()
+	if not bagContents:
+		print('bag is empty')
+		exit()
+
+	#### -- jet data --
+	cnt_jet = 0
+	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
+		cnt_jet += 1
+
+	jet_data  = np.zeros((4,cnt_jet))
+	i = 0
+	for subtopic, msg, t in bag.read_messages('/usv/hamjet/status_high'):
+		# engines rpm, steering, jet time, bucket
+		jet_data[0, i] = (msg.port_shaft_rpm + msg.stbd_shaft_rpm) / 2
+		jet_data[1, i] = (msg.port_steering + msg.stbd_steering) / 2
+		jet_data[2, i] = t.to_sec()
+		jet_data[3, i] = (msg.port_reverse + msg.stbd_reverse) / 2
+		i += 1
+
+	# Set initail jet time to zero
+	jet_data[2, :] = jet_data[2, :] - jet_data[2, 0]
+
+
+	#### -- nav data --
+	cnt_nav = 0
+	for subtopic, msg, t in bag.read_messages('/usv/navp_msg'):
+		cnt_nav += 1
+
+	nav_data = np.zeros((7,cnt_nav))
+	i = 0
+	for subtopic, msg, t in bag.read_messages('/usv/navp_msg'):
+		#surge, sway, yaw
+		nav_data[0, i] = msg.pose.latitude
+		nav_data[1, i] = msg.pose.longitude
+		nav_data[2, i] = msg.pose.heading
+
+		#surge, sway, yaw - Rate
+		nav_data[3, i] = msg.vel.xVelocityB
+		nav_data[4, i] = msg.vel.yVelocityB
+		nav_data[5, i] = msg.rate.zAngularRateB # in deg/s
+
+		# nav time
+		nav_data[6, i] = t.to_sec()
+		i += 1
+
+	#set initial time to zero
+	nav_data[6, :] = nav_data[6, :] - nav_data[6, 0] 
+	nav_data[5, :] = nav_data[5, :] * (np.pi/180) #from deg/s to rad/s
+	####		 --Fiter--
+	#set the sample time to 0.05
+	def filter(nav_data):
+		#savgol_filter
+		sav_fil = False
+		FB_fil = False
+		spline = False
+		interpol = True
+
+		#savgol_filter
+		if sav_fil:
+			# u_smooth_deriv = signal.savgol_filter(nav_data[3, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
+			# v_smooth_deriv = signal.savgol_filter(nav_data[4, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
+			# r_smooth_deriv = signal.savgol_filter(nav_data[5, :], 51, 4, deriv=1, delta=nav_data[3, 1]- nav_data[3, 0]) 
+
+			u_smooth = signal.savgol_filter(nav_data[3, :], 51, 4) 
+			v_smooth = signal.savgol_filter(nav_data[4, :], 51, 4) 
+			r_smooth = signal.savgol_filter(nav_data[5, :], 51, 4) 
+
+		#find freq
+		if 0:
+			len_ = 30
+			test_t = list(np.arange(0, len_, 0.01))
+			sp = np.fft.rfft(np.sin(test_t))
+			freq = np.fft.rfftfreq(len(test_t))
+			plt.figure()
+			plt.plot(freq, sp.real)
+			plt.grid()
+			plt.ylabel('amount?')
+			plt.xlabel('freq')
+
+			#butter
+			order = 2
+			cutoff = 0.003
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			if FB_fil:
+				sin = signal.filtfilt(b, a, np.sin(test_t)) 
+		 
+
+			plt.figure()
+			plt.plot(test_t, sin)
+			plt.plot(test_t, np.sin(test_t))
+			plt.legend(['butter', 'orig'])
+
+			plt.show()
+			exit()
+		
+		if FB_fil:
+			#butter
+			order = 2
+			cutoff = 0.05
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			u_smooth = signal.filtfilt(b, a, nav_data[3, :]) 
+			v_smooth = signal.filtfilt(b, a, nav_data[4, :]) 
+			r_smooth = signal.filtfilt(b, a, nav_data[5, :]) 
+
+			#forward
+			# u_smooth = signal.lfilter(b, a, nav_data[3, :]) 
+			# v_smooth = signal.lfilter(b, a, nav_data[4, :]) 
+			# r_smooth = signal.lfilter(b, a, nav_data[5, :]) 
+		
+		#spline 
+		if spline: #NOPE
+			u_smooth = signal.gauss_spline(nav_data[3, :], 5) 
+			v_smooth = signal.gauss_spline(nav_data[4, :], 5) 
+			r_smooth = signal.gauss_spline(nav_data[5, :], 5) 
+
+		#interpolate then smooth
+		if interpol:
+			steps = 0.05
+			interp_arr = list(np.arange(nav_data[6, 0], nav_data[6, -1], steps))
+			u_int = np.interp(interp_arr, nav_data[6, :],nav_data[3, :])
+			v_int = np.interp(interp_arr, nav_data[6, :],nav_data[4, :])
+			r_int = np.interp(interp_arr, nav_data[6, :],nav_data[5, :])
+
+			order = 2
+			cutoff = filter_cutoff
+			b, a = signal.butter(order, cutoff, btype='low', analog=False, output='ba')
+
+			#Forward -Backward filter
+			u_smooth = signal.filtfilt(b, a, u_int) 
+			v_smooth = signal.filtfilt(b, a, v_int) 
+			r_smooth = signal.filtfilt(b, a, r_int) 
+			return u_smooth, v_smooth, r_smooth, interp_arr
+			#plot
+			if 0:
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[3, :])
+				plt.plot(interp_arr, u_int)
+				plt.plot(interp_arr, u_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('u')
+				plt.grid()
+
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[4, :])
+				plt.plot(interp_arr, v_int)
+				plt.plot(interp_arr, v_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('v')
+				plt.grid()
+
+				plt.figure()
+				plt.plot(nav_data[6, :], nav_data[5, :])
+				plt.plot(interp_arr, r_int)
+				plt.plot(interp_arr, r_smooth)
+				plt.legend([ 'orig', 'int', 'int smooth'])
+				plt.ylabel('r')
+				plt.grid()
+
+				plt.show()
+		
+		return u_smooth, v_smooth, r_smooth
+	u_smooth, v_smooth, r_smooth, interp_arr = filter(nav_data)
+
+
+	#### 		-- Integrate --
+	def deriv(nav_data, u_smooth, v_smooth, r_smooth):
+		du = np.diff(nav_data[3, :],n = 1) / 0.05
+		dv = np.diff(nav_data[4, :],n = 1)/ 0.05
+		dr = np.diff(nav_data[5, :],n = 1)/ 0.05
+
+		du_smo = np.diff(u_smooth ,n = 1)/ 0.05
+		dv_smo = np.diff(v_smooth ,n = 1)/ 0.05
+		dr_smo = np.diff(r_smooth ,n = 1)/ 0.05
+
+		#add the last signal twice 
+		du = np.concatenate((du,[du[-1]]))
+		dv = np.concatenate((dv,[dv[-1]]))
+		dr = np.concatenate((dr,[dr[-1]]))
+
+		du_smo = np.concatenate((du_smo,[du_smo[-1]]))
+		dv_smo = np.concatenate((dv_smo,[dv_smo[-1]]))
+		dr_smo = np.concatenate((dr_smo,[dr_smo[-1]]))
+
+		return du, dv, dr, du_smo, dv_smo, dr_smo
+	du, dv, dr, du_smo, dv_smo, dr_smo =  deriv(nav_data, u_smooth, v_smooth, r_smooth)
+
+	jet_data[1, :] = np.multiply(jet_data[1, :],(27/100)) # from [-100, 100] to [-27, 27] deg
+
+	def interpolate(jet_data, nav_data, interp_arr):
+		jet_rpm = 		np.interp(interp_arr, jet_data[2, :], jet_data[0, :])
+		nozzle_angle =	np.interp(interp_arr, jet_data[2, :], jet_data[1, :]) # not really nozzle angle but rather [-100, 100]% = [-27, 27] deg 
+		bucket = 		np.interp(interp_arr, jet_data[2, :], jet_data[3, :]) # from [-100, to 100]
+		yaw = 			np.interp(interp_arr, nav_data[6, :], nav_data[2, :]) # yaw
+		return jet_rpm, nozzle_angle, bucket, yaw
+
+	jet_rpm, nozzle_angle, bucket, yaw = interpolate(jet_data, nav_data, interp_arr)
+
+
+
+	
+
+
+	#preeprossesed matrix of variables.
+	X = [yaw, u_smooth, v_smooth, r_smooth, du_smo, dv_smo, dr_smo, jet_rpm, nozzle_angle, bucket, interp_arr]
+	X = np.array(X)
+
+
+	### ---Plots----
+	if plot:
+		plt.figure()
+		plt.plot(jet_data[2, :], jet_data[0, :])
+		plt.plot(jet_data[2, :], jet_data[1, :])
+		plt.plot(jet_data[2, :], jet_data[3, :])
+		plt.legend(['rpm','steering','bucket'])
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(nav_data[6, :], du)
+		plt.plot(interp_arr, du_smo)
+		plt.legend(['du', 'du_smooth'])
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6, :],dv)
+		plt.plot(interp_arr,dv_smo)
+		plt.legend(['dv', 'dv_smooth'])
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6, :],dr)
+		plt.plot(interp_arr,dr_smo)
+		plt.legend(['dr', 'dr_smooth'])
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(nav_data[6, :], nav_data[3, :], 'r.-')
+		plt.plot(interp_arr, u_smooth)
+		plt.ylabel('u')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6, :], nav_data[4, :], 'r.-')
+		plt.plot(interp_arr, v_smooth)
+		plt.ylabel('v')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6, :], nav_data[5, :], 'r.-')
+		plt.plot(interp_arr, r_smooth)
+		plt.ylabel('r')
+		plt.grid()
+
+		plt.figure()
+		plt.subplot(211)
+		plt.plot(jet_data[2, :], jet_data[1, :])
+		plt.grid()
+		plt.ylabel('nozzle')
+		plt.subplot(212)
+		plt.plot(nav_data[6, :], nav_data[4, :])
+		plt.grid()
+		plt.ylabel('v')
+
+		plt.figure()
+		plt.plot(nav_data[0,:],nav_data[1,:])
+		plt.plot(nav_data[0,0],nav_data[1,0],'rx')
+		plt.title('XY-plot, starts at the red cross')
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[0])
+		plt.ylabel('Jet [RPM]')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[3])
+		plt.plot(interp_arr, u_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('u [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],du)	
+		plt.plot(interp_arr,du_smo)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('du smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+
+
+		plt.figure()
+		plt.subplot(311)
+		plt.plot(jet_data[2],jet_data[1])
+		plt.ylabel('nozzle angle')
+		plt.grid()
+		plt.subplot(312)
+		plt.plot(nav_data[6],nav_data[4])
+		plt.plot(interp_arr, v_smooth)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('v [m/s]')
+		plt.grid()
+		plt.subplot(313)
+		plt.plot(nav_data[6],dv)	
+		plt.plot(interp_arr,dv_smo)
+		plt.legend(['raw', 'smooth'])
+		plt.ylabel('dv smooth [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.grid()
+
+		plt.show()
+
+	return X
 
 
 
