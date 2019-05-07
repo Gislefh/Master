@@ -1252,6 +1252,7 @@ def open_bag_w_yaw(path, plot = False, thr_bucket = True, filter_cutoff = 0.025,
 		jet_data[3, i] = (msg.port_reverse + msg.stbd_reverse) / 2
 		i += 1
 
+
 	# Set initail jet time to zero
 	jet_data[2, :] = jet_data[2, :] - jet_data[2, 0]
 

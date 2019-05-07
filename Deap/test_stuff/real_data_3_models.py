@@ -26,65 +26,18 @@ import my_lib
 from scipy import optimize
 from pytictoc import TicToc
 
-bag_1 = 'hal_control_2018-12-11-10-53-26_0' #large!
-bag_2 = 'hal_control_2018-12-11-11-49-22_0' #similar to bag1 but smaller
-bag_3 = 'hal_control_2018-12-11-12-13-58_0' #
-bag_4 = 'hal_control_2018-12-11-12-19-11_0'
 
 
-# bag path
-path = '/home/gislehalv/Master/Data/'
+X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
+X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
+X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
+X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025'+'.npy')
+X = np.concatenate((X1,X2,X3,X4),axis = 1)
 
-
-bagFile_path_train = path + bag_1 + '.bag'
-
-bagFile_path_val = path + bag_2 + '.bag'
-bagFile_path_test = path + bag_3 + '.bag'
-
-
-##get data
-# X = my_lib.open_bag(bagFile_path_train, plot=True, thr_bucket = False, filter_cutoff = 0.025)
-# X_val = my_lib.open_bag(bagFile_path_val, plot=False, thr_bucket = False, filter_cutoff = 0.1)
-# X_test = my_lib.open_bag(bagFile_path_test, plot=False, thr_bucket = False, filter_cutoff = 0.1)
-# np.save('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025' , X)
-
-
-# X = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
-# X_val = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
-# #X_test = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
-
-# split = int(np.shape(X)[1]/2)
-# X_test = X_val[:, :split]
-# X_val = X_val[:, split:]
-
-"""
-
-Notes:
-- nozzle angle is not the angle but in the range[-100, 100], but the ral angle is in the range[-27, 27] deg
-- interp_arr is the time variable 
-"""
-######### all data
-
-X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_1'+'.npy')
-X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_1'+'.npy')
-X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_1'+'.npy')
-X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_1'+'.npy')
-#X = [u, v, r, du, dv, dr, jet_rpm, nozzle_angle, bucket, interp_arr], interp_arr= time. 
-
-#melt all the data together
-X = np.concatenate((X1,X2,X3),axis = 1)
 X[-3][X[-3] > 27] = 27 #remove error in the data
 X[-3][X[-3] < -27] = -27
-X_orig = X.copy()
-X_test = X4
 
 
-
-#fix time
-time_fix = np.concatenate((X1[-1], X2[-1]+ X1[-1,-1], X3[-1] + X2[-1,-1] + X1[-1,-1] ))
-X[-1] = time_fix
-X_orig[-1] = time_fix
-X_test[-1] = X_test[-1]+ time_fix[-1]
 
 #remove data with bucket < 95
 index = []
@@ -94,88 +47,66 @@ for i in range(np.shape(X)[1]):
 			index.append(i)
 X = np.delete(X, index, 1)
 
-# divide into val and train sets
-X_val = np.concatenate((X[:,11511:18500], X[:,27912:32693], X[:,56531:60714], X[:,70475:74193]),axis = 1)
-index = list(range(11511,18500)) + list(range(27912,32693)) +list(range(56531,60714)) + list(range(70475,74193))
-X = np.delete(X, index, 1)
+
+
+### ------- create datasets for the 3 phases -------
+lpp = 10.5
+g = 9.81
+
+index_dis = []
+index_semi_dis = []
+index_planing = []
+
+
+
+for i in range(np.shape(X)[1]):
+	U = np.sqrt(X[0, i]**2 + X[1, i]**2) 
+	Froude = U/np.sqrt(g*lpp)
+
+	# displacement phase
+	if Froude < 0.4:
+		index_dis.append(i)
+
+	# semi-dis phase 
+	elif Froude <= 1 and Froude >= 0.4:
+		index_semi_dis.append(i)
+
+	#planing phase
+	elif Froude > 1:
+		index_planing.append(i)
+
+
+
+# plt.figure()
+# plt.plot(index_dis,np.ones(len(index_dis)), 'r.')
+# plt.plot(index_semi_dis, np.ones(len(index_semi_dis))+0.25, 'b.')
+# plt.plot(index_planing, np.ones(len(index_planing))+0.5, 'g.')
+# plt.plot(list(range(len(X[-1]))), np.sqrt(X[0]**2 + X[1]**2))
+# plt.legend(['displacement', 'semi-dis', 'planing', 'U'])
+# plt.show()
+# exit()
+
+X_dis = np.take(X,index_dis,axis = 1)
+X_semi_dis = np.take(X, index_semi_dis, axis = 1)
+X_planing = np.take(X, index_planing, axis = 1)
 
 
 
 
-time_step_size = X_val[-1,1] - X_val[-1,0]
-
-#X_val[-1] = np.arange(0, len(X_val[-1]) * time_step_size, time_step_size)
-#X[-1] = np.arange(0, len(X[-1]) * time_step_size, time_step_size)
-
-
-########
+##  -- What phase to find -- 
+#X_phase = X_dis.copy()
+#X_phase = X_semi_dis.copy()
+X_phase = X_planing.copy()
 
 
-# plot the dataset
-if 0:
-	plt.figure()
-	plt.subplot(411)
-	plt.plot(X_orig[-1], X_orig[0])
-	plt.grid()
-	plt.ylabel('u [m/s]')
-	plt.subplot(412)
-	plt.plot(X_orig[-1], X_orig[1])
-	plt.grid()
-	plt.ylabel('v [m/s]')
-	plt.subplot(413)
-	plt.plot(X_orig[-1], X_orig[2])
-	plt.grid()
-	plt.ylabel('r [rad/s]')
-	plt.subplot(414)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
+# train, val test
+inedx_tvt = list(range(np.shape(X_phase)[1]))
+X_val = np.take(X_phase, inedx_tvt[0:int(len(inedx_tvt)*0.5)], axis = 1)
+X = np.take(X_phase, inedx_tvt[int(len(inedx_tvt)*0.5):int(len(inedx_tvt)*0.9)], axis = 1)
+X_test = np.take(X_phase, inedx_tvt[int(len(inedx_tvt)*0.9):], axis = 1)
 
 
-	plt.figure()
-	plt.subplot(411)
-	plt.plot(X_orig[-1], X_orig[3])
-	plt.grid()
-	plt.ylabel('du [m/s^2]')
-	plt.subplot(412)
-	plt.plot(X_orig[-1], X_orig[4])
-	plt.grid()
-	plt.ylabel('dv [m/s^2]')
-	plt.subplot(413)
-	plt.plot(X_orig[-1], X_orig[5])
-	plt.grid()
-	plt.ylabel('dr [rad/s^2]')
-	plt.subplot(414)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
-
-	plt.figure()
-	plt.subplot(311)
-	plt.plot(X_orig[-1], X_orig[-4])
-	plt.grid()
-	plt.ylabel('RPM')
-	plt.subplot(312)
-	plt.plot(X_orig[-1], X_orig[-3])
-	plt.grid()
-	plt.ylabel('Nozzle Angle [deg]')
-	plt.subplot(313)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
-
-	plt.show()
-	exit()
-
-
-
-## what equation to find
+##  ------ what equation to find -------
 solve_for_du = False
 solve_for_dv = True
 solve_for_dr = False
@@ -198,7 +129,7 @@ pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(operator.abs, 1)
 #pset.addPrimitive(math.tanh, 1)
-pset.addPrimitive(np.sin, 1)
+epset.addPrimitive(np.sin, 1)
 pset.addPrimitive(np.cos, 1)
 #pset.addPrimitive(square, 1)
 
@@ -295,7 +226,6 @@ def split_tree(individual):
 
 	ext_funcs(individual)
 	return subtree_list, str_list
-
 
 #either return_str = True or plot_result = True, not both. 
 
@@ -545,8 +475,8 @@ toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)  #<-------- gives faster results with 2,4 than 0,2 
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=5))
-toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=5))
+toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=6))
+toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=6))
 
 
 
@@ -619,7 +549,7 @@ for gen in range(0,generations):
 	else:
 		no_ch = no_ch + 1
 
-	if no_ch >= 5 and gen > 10: #validation has not gotten better in 5 generations -> terminate
+	if no_ch >= 10 and gen > 10: #validation has not gotten better in 5 generations -> terminate
 		break
 
 
@@ -638,6 +568,7 @@ func = eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta
 plt.figure()
 plt.plot(list(range(len(X_val[-1]))), func(X_val[0], X_val[1], X_val[2], X_val[-4], X_val[-3]))
 plt.plot(list(range(len(X_val[-1]))), y_val)
+plt.legend(['Predicted', 'Ground Truth'])
 plt.grid()
 plt.title('Validation set')
 plt.xlabel('Time [s]')
@@ -646,6 +577,7 @@ plt.ylabel('du')
 plt.figure()
 plt.plot(list(range(len(X_test[-1]))), func(X_test[0], X_test[1], X_test[2], X_test[-4], X_test[-3]))
 plt.plot(list(range(len(X_test[-1]))), y_test)
+plt.legend(['Predicted', 'Ground Truth'])
 plt.grid()
 plt.title('Test set')
 plt.xlabel('Time [s]')
