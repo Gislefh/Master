@@ -113,10 +113,10 @@ def plot_parts_w_sol(func_list_rest, gt, xlim = [], ylim = []):
 
 ###-- get data
 if 1:
-	X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_1'+'.npy')
-	X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_1'+'.npy')
-	X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_1'+'.npy')
-	X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_1'+'.npy')
+	X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
+	X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
+	X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
+	X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025'+'.npy')
 
 
 	#fix time 
@@ -134,14 +134,17 @@ if 1:
 			if X[-2, i] < 95:
 				index.append(i)
 	X = np.delete(X, index, 1)
-
+	
+	# X_val = np.concatenate((X[:,11511:18500], X[:,27912:32693], X[:,56531:60714], X[:,70475:74193]),axis = 1)
+	# index = list(range(11511,18500)) + list(range(27912,32693)) +list(range(56531,60714)) + list(range(70475,74193))
+	# X = np.delete(X, index, 1)
 
 	u = X[0]
 	v = X[1]
 	r = X[2]
 	delta_t = X[-4]
 	delta_n = X[-3]
-	y = X[5]        #  <----dv btw
+	y = X[3]        #  <----dv btw
 	time = X[-1]
 	delta_n[delta_n > 27] = 27 #remove error in the data
 	delta_n[delta_n < -27] = -27
@@ -177,21 +180,21 @@ if du_:
 	sol_no_cosr = func_no_cosr(u,v,r,delta_t,delta_n)
 
 	# plot str parts
-	plot_parts(orig_str_no_cosr_split)
+	#plot_parts(orig_str_no_cosr_split)
 	
 
 
 
 
-	plt.figure()
-	#plt.subplot(211)
-	plt.plot(time, sol)
-	plt.plot(time, sol_no_cosr)
-	plt.plot(time, y)
-	plt.grid()
-	plt.ylabel('du [m/s^2]')
-	plt.xlabel('Time [s]')
-	plt.legend(['original','no cos(r)' ,'ground truth'])
+	# plt.figure()
+	# #plt.subplot(211)
+	# plt.plot(time, sol)
+	# plt.plot(time, sol_no_cosr)
+	# plt.plot(time, y)
+	# plt.grid()
+	# plt.ylabel('du [m/s^2]')
+	# plt.xlabel('Time [s]')
+	# plt.legend(['original','no cos(r)' ,'ground truth'])
 	#plt.subplot(212)
 	#plt.plot(time, sol - y)
 	#plt.plot(time, sol_nocossin - y)
@@ -203,6 +206,15 @@ if du_:
 	# plt.grid()
 	# plt.ylabel('r')
 	# plt.xlabel('Time [s]')
+
+
+	plt.figure()
+	plt.plot(time, sol_no_cosr)
+	plt.plot(time, y)
+	plt.legend(['Model', 'Data'])
+	plt.xlabel('Time [s]')
+	plt.ylabel('du [m/s^2]')
+	plt.grid()
 	plt.show()
 
 #### --------- dv ------------ 

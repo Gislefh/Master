@@ -28,10 +28,10 @@ from pytictoc import TicToc
 
 
 
-X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
-X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
-X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
-X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025'+'.npy')
+X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_1'+'.npy')
+X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_1'+'.npy')
+X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_1'+'.npy')
+X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_1'+'.npy')
 X = np.concatenate((X1,X2,X3,X4),axis = 1)
 
 X[-3][X[-3] > 27] = 27 #remove error in the data
@@ -95,8 +95,8 @@ X_planing = np.take(X, index_planing, axis = 1)
 
 ##  -- What phase to find -- 
 #X_phase = X_dis.copy()
-#X_phase = X_semi_dis.copy()
-X_phase = X_planing.copy()
+X_phase = X_semi_dis.copy()
+#X_phase = X_planing.copy()
 
 
 # train, val test
@@ -107,8 +107,8 @@ X_test = np.take(X_phase, inedx_tvt[int(len(inedx_tvt)*0.9):], axis = 1)
 
 
 ##  ------ what equation to find -------
-solve_for_du = False
-solve_for_dv = True
+solve_for_du = True
+solve_for_dv = False
 solve_for_dr = False
 if solve_for_du:
 	y = X[3]
@@ -129,7 +129,7 @@ pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(operator.abs, 1)
 #pset.addPrimitive(math.tanh, 1)
-epset.addPrimitive(np.sin, 1)
+pset.addPrimitive(np.sin, 1)
 pset.addPrimitive(np.cos, 1)
 #pset.addPrimitive(square, 1)
 
