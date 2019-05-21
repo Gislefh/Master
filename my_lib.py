@@ -908,8 +908,12 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 	#set initial time to zero
 	nav_data[6, :] = nav_data[6, :] - nav_data[6, 0] 
 	nav_data[5, :] = nav_data[5, :] * (np.pi/180) #from deg/s to rad/s
+
+
+
 	####		 --Fiter--
 	#set the sample time to 0.05
+	
 	def filter(nav_data):
 		#savgol_filter
 		sav_fil = False
@@ -1186,6 +1190,15 @@ def open_bag(path, plot = False, thr_bucket = True, filter_cutoff = 0.025, retur
 		plt.legend(['raw', 'smooth'])
 		plt.ylabel('dv smooth [m/s^2]')
 		plt.xlabel('Time [s]')
+		plt.grid()
+
+
+		plt.figure()
+		plt.plot(nav_data[6, :], du)
+		plt.plot(interp_arr, du_smo)
+		plt.ylabel('du [m/s^2]')
+		plt.xlabel('Time [s]')
+		plt.legend(['du - original', 'du - after butterworth'])
 		plt.grid()
 
 		plt.show()

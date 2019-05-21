@@ -1,5 +1,5 @@
 """
-Genetic Programming on real data. control inputs delta_ tand delta_n as inputs
+Genetic Programming on real data. ---- Force as input
 """
 import mpmath
 import operator
@@ -26,70 +26,14 @@ import my_lib
 from scipy import optimize
 from pytictoc import TicToc
 
-# bag_1 = 'hal_control_2018-12-11-10-53-26_0' #large!
-# bag_2 = 'hal_control_2018-12-11-11-49-22_0' #similar to bag1 but smaller
-# bag_3 = 'hal_control_2018-12-11-12-13-58_0' #
-# bag_4 = 'hal_control_2018-12-11-12-19-11_0'
-
-
-# # bag path
-# path = '/home/gislehalv/Master/Data/'
-
-
-# bagFile_path_train = path + bag_1 + '.bag'
-
-# bagFile_path_val = path + bag_2 + '.bag'
-# bagFile_path_test = path + bag_3 + '.bag'
-
-
-##get data
-# X = my_lib.open_bag(bagFile_path_train, plot=True, thr_bucket = False, filter_cutoff = 0.025)
-# X_val = my_lib.open_bag(bagFile_path_val, plot=False, thr_bucket = False, filter_cutoff = 0.1)
-# X_test = my_lib.open_bag(bagFile_path_test, plot=False, thr_bucket = False, filter_cutoff = 0.1)
-# np.save('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_025' , X)
-
-
-# X = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_025'+'.npy')
-# X_val = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_025'+'.npy')
-# #X_test = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_025'+'.npy')
-
-# split = int(np.shape(X)[1]/2)
-# X_test = X_val[:, :split]
-# X_val = X_val[:, split:]
-
-"""
-
-Notes:
-- nozzle angle is not the angle but in the range[-100, 100], but the ral angle is in the range[-27, 27] deg
-- interp_arr is the time variable 
-"""
-######### all data
-
-#X1 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag1_1'+'.npy')
-#X2 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag2_1'+'.npy')
-#X3 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag3_1'+'.npy')
-#X4 = np.load('/home/gislehalv/Master/Data/numpy_data_from_bag/' + 'bag4_1'+'.npy')
-#X = [u, v, r, du, dv, dr, jet_rpm, nozzle_angle, bucket, interp_arr], interp_arr= time. 
-
-#melt all the data together
-#X = np.concatenate((X1,X2,X3),axis = 1)
-#X[-3][X[-3] > 27] = 27 #remove error in the data
-#X[-3][X[-3] < -27] = -27
-#X_orig = X.copy()
-#X_test = X4
 
 
 
+### load data 
+path = '/home/gislehalv/Master/Data/numpy_data_from_bag_force/'
+file = 'all_bags_cut1.npy'
+X = np.load(path+file)
 
-
-#fix time
-# time_fix = np.concatenate((X1[-1], X2[-1]+ X1[-1,-1], X3[-1] + X2[-1,-1] + X1[-1,-1] ))
-# X[-1] = time_fix
-# X_orig[-1] = time_fix
-# X_test[-1] = X_test[-1]+ time_fix[-1]
-
-
-X = np.load('/home/gislehalv/Master/scripts/standard_model/Data_cut01.npy')
 
 
 #remove data with bucket < 95
@@ -110,74 +54,16 @@ X = np.delete(X, index, 1)
 
 
 
-# plot the dataset
-if 0:
-	plt.figure()
-	plt.subplot(411)
-	plt.plot(X_orig[-1], X_orig[0])
-	plt.grid()
-	plt.ylabel('u [m/s]')
-	plt.subplot(412)
-	plt.plot(X_orig[-1], X_orig[1])
-	plt.grid()
-	plt.ylabel('v [m/s]')
-	plt.subplot(413)
-	plt.plot(X_orig[-1], X_orig[2])
-	plt.grid()
-	plt.ylabel('r [rad/s]')
-	plt.subplot(414)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
 
 
-	plt.figure()
-	plt.subplot(411)
-	plt.plot(X_orig[-1], X_orig[3])
-	plt.grid()
-	plt.ylabel('du [m/s^2]')
-	plt.subplot(412)
-	plt.plot(X_orig[-1], X_orig[4])
-	plt.grid()
-	plt.ylabel('dv [m/s^2]')
-	plt.subplot(413)
-	plt.plot(X_orig[-1], X_orig[5])
-	plt.grid()
-	plt.ylabel('dr [rad/s^2]')
-	plt.subplot(414)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
 
-	plt.figure()
-	plt.subplot(311)
-	plt.plot(X_orig[-1], X_orig[-4])
-	plt.grid()
-	plt.ylabel('RPM')
-	plt.subplot(312)
-	plt.plot(X_orig[-1], X_orig[-3])
-	plt.grid()
-	plt.ylabel('Nozzle Angle [deg]')
-	plt.subplot(313)
-	plt.plot(X[-1], np.ones(len(X[0])), 'rx')
-	plt.plot(X_val[-1], np.ones(len(X_val[0])), 'bx')
-	plt.legend(['Training', 'Validation'])
-	plt.xlabel('Time [s]')
-	plt.grid()
-
-	plt.show()
-	exit()
 
 
 
 ## what equation to find
-solve_for_du = False
+solve_for_du = True
 solve_for_dv = False
-solve_for_dr = True
+solve_for_dr = False
 if solve_for_du:
 	y = X[3]
 	y_val = X_val[3]
@@ -192,22 +78,22 @@ if solve_for_dr:
 	y_test = X_test[5]
 
 
-pset = gp.PrimitiveSet("MAIN", 5)
+pset = gp.PrimitiveSet("MAIN", 6)
 pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(operator.abs, 1)
 #pset.addPrimitive(math.tanh, 1)
-pset.addPrimitive(np.sin, 1)
-pset.addPrimitive(np.cos, 1)
+#pset.addPrimitive(np.sin, 1)
+#pset.addPrimitive(np.cos, 1)
 #pset.addPrimitive(square, 1)
 
 #Variable names 
 pset.renameArguments(ARG0='u')
 pset.renameArguments(ARG1='v')
 pset.renameArguments(ARG2='r')
-pset.renameArguments(ARG3='delta_t')
-pset.renameArguments(ARG4='delta_n')
-
+pset.renameArguments(ARG3='fx')
+pset.renameArguments(ARG4='fy')
+pset.renameArguments(ARG5='fz')
 
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
@@ -404,7 +290,7 @@ def OLS(individual, u, v, r, delta_t, delta_n, y, threshold = 0.05):
 
 
 
-def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str = False, plot_result = False, return_function = False):
+def eval_fit_new_w_constant(individual, u, v, r, fx, fy, fz, y, return_str = False, plot_result = False, return_function = False):
 	#print('individual: ',individual)
 	funcs, str_list = split_tree(individual)
 	F_list = []
@@ -423,9 +309,9 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 	expand_ind = True
 	if expand_ind:
 		def expand_functions(exp_str):
-			u, v, r, delta_t, delta_n = symbols('u v r delta_t delta_n')
+			u, v, r, fx, fy, fz = symbols('u v r fx fy fz')
 			for sub_func in range(len(exp_str.args)):
-				f = lambdify((u,v,r, delta_t, delta_n),exp_str.args[sub_func], 'numpy')
+				f = lambdify((u,v,r, fx, fy, fz),exp_str.args[sub_func], 'numpy')
 				new_funcs.append(f)
 				new_str_list.append(str(exp_str.args[sub_func]))
 
@@ -454,7 +340,7 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 	#top root is not 'add'
 	if len(funcs) == 1:
 
-		F = funcs[0](u, v, r, delta_t, delta_n)
+		F = funcs[0](u, v, r, fx, fy, fz)
 		F_trans = np.transpose(F)
 
 		p = np.dot(np.dot(F_trans,F),np.dot(F_trans,y)) 
@@ -468,7 +354,7 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 		F = np.zeros((len(y), len(F_list)))
 
 		for i, function in enumerate(F_list):
-			F[:,i] = np.squeeze(function(u, v, r, delta_t, delta_n))
+			F[:,i] = np.squeeze(function(u, v, r, fx, fy, fz))
 
 		F_trans = np.transpose(F)
 		try:
@@ -481,7 +367,7 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 	tot_func = np.zeros((len(y)))
 
 	for i, func in enumerate(funcs):
-		tot_func = np.add(tot_func, p[i]*func(u, v, r, delta_t, delta_n))
+		tot_func = np.add(tot_func, p[i]*func(u, v, r, fx, fy, fz))
 
 
 	mse = math.fsum((y-tot_func)**2)/len(y)
@@ -529,9 +415,9 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 			tot_str = tot_str +'+'+ str(p[i])+ '*' +func_str
 		function_string = str(sympify(tot_str,locals = locals))
 		def create_function(str_list_):
-			u, v, r, delta_t, delta_n = symbols('u v r delta_t delta_n')
+			u, v, r, fx, fy, fz = symbols('u v r fx fy fz')
 			tmp_f = str(sympify(str_list_,locals = locals))
-			list_ = lambdify((u,v,r, delta_t, delta_n), tmp_f, 'numpy')
+			list_ = lambdify((u, v, r, fx, fy, fz), tmp_f, 'numpy')
 			return list_
 		lam_func = create_function(function_string)
 		return lam_func
@@ -539,7 +425,7 @@ def eval_fit_new_w_constant(individual, u, v, r, delta_t, delta_n, y, return_str
 
 	return(mse,)
 
-toolbox.register("evaluate", eval_fit_new_w_constant, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False)
+toolbox.register("evaluate", eval_fit_new_w_constant, u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = False)
 toolbox.register("select", tools.selTournament, tournsize=5)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)  #<-------- gives faster results with 2,4 than 0,2 
@@ -581,10 +467,6 @@ for gen in range(0,generations):
 	invalid_ind = [ind for ind in pop if not ind.fitness.valid]
 
 
-	#--- OLS --- 
-	# for i, individual in enumerate(invalid_ind):
-	# 	invalid_ind[i] = OLS(individual, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, threshold = ols_thr)
-
 
 	fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)	
 	for ind, fit in zip(invalid_ind, fitnesses):
@@ -597,9 +479,9 @@ for gen in range(0,generations):
 	pop = toolbox.select(pop, k=len(pop))
 
 	
-	train_score = eval_fit_new_w_constant(hof[0], u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False)[0]
-	func = eval_fit_new_w_constant(hof[0], u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False, return_function = True)
-	val_score = math.fsum((y_val-func(X_val[0], X_val[1], X_val[2], X_val[-4], X_val[-3]))**2)/len(y_val)
+	train_score = eval_fit_new_w_constant(hof[0],  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = False)[0]
+	func = eval_fit_new_w_constant(hof[0],  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = False, return_function = True)
+	val_score = math.fsum((y_val-func(X_val[0], X_val[1], X_val[2], X_val[6], X_val[7], X_val[8]))**2)/len(y_val)
 	
 	print('Generation:',gen)
 	print('training score: ',train_score)
@@ -613,7 +495,7 @@ for gen in range(0,generations):
 		best_val_ind = hof[0]
 		best_val = val_score
 		print('---------Saved as new best----------')
-		print('The new eq:', eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = True))
+		print('The new eq:', eval_fit_new_w_constant(best_val_ind,  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = True))
 		no_ch = 0
 	else:
 		no_ch = no_ch + 1
@@ -624,18 +506,18 @@ for gen in range(0,generations):
 
 
 print('Finished')
-print('Best equation:',eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = True))
+print('Best equation:',eval_fit_new_w_constant(best_val_ind,  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = True))
 
 
-eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, plot_result = True)
+eval_fit_new_w_constant(best_val_ind,  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, plot_result = True)
 plt.title('Training set')
 
-func = eval_fit_new_w_constant(best_val_ind, u = X[0], v = X[1], r = X[2], delta_t = X[-4,:], delta_n = X[-3,:], y = y, return_str = False, return_function = True)
+func = eval_fit_new_w_constant(best_val_ind,  u = X[0], v = X[1], r = X[2], fx = X[6], fy = X[7], fz = X[8], y = y, return_str = False, return_function = True)
 
 #plot val and train set
 
 plt.figure()
-plt.plot(list(range(len(X_val[-1]))), func(X_val[0], X_val[1], X_val[2], X_val[-4], X_val[-3]))
+plt.plot(list(range(len(X_val[-1]))), func(X_val[0], X_val[1], X_val[2], X_val[6], X_val[7], X_val[8]))
 plt.plot(list(range(len(X_val[-1]))), y_val)
 plt.grid()
 plt.title('Validation set')
@@ -643,7 +525,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('du')
 
 plt.figure()
-plt.plot(list(range(len(X_test[-1]))), func(X_test[0], X_test[1], X_test[2], X_test[-4], X_test[-3]))
+plt.plot(list(range(len(X_test[-1]))), func(X_test[0], X_test[1], X_test[2], X_test[6], X_test[7], X_test[8]))
 plt.plot(list(range(len(X_test[-1]))), y_test)
 plt.grid()
 plt.title('Test set')
